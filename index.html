@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Bisnis Cabang</title>
+    <!-- Chart.js for Charts -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <!-- html2pdf for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <style>
         :root {
             --bg-sidebar: #0f172a; --bg-sidebar-hover: #1e293b; --text-sidebar: #94a3b8; --text-sidebar-active: #ffffff;
@@ -47,7 +51,8 @@
         .login-error { color: var(--danger-red); font-size: 12px; text-align: center; display: none; }
 
         /* --- SIDEBAR & LAYOUT --- */
-        .sidebar { width: 260px; background-color: #0f172a; display: flex; flex-direction: column; overflow-y: auto; border-right: 1px solid #1e293b; transition: transform 0.3s ease; z-index: 100; flex-shrink: 0; }
+        .sidebar { width: 260px; background-color: #0f172a; display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid #1e293b; transition: transform 0.3s ease; z-index: 100; flex-shrink: 0; }
+        .sidebar-menu-wrapper { overflow-y: auto; flex: 1; }
         .sidebar-header { padding: 20px; font-size: 18px; font-weight: 800; color: white; border-bottom: 1px solid #1e293b; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
         .menu-category { padding: 20px 20px 5px 20px; font-size: 11px; font-weight: 700; color: var(--text-sidebar); text-transform: uppercase; letter-spacing: 0.5px; }
         .menu-list { list-style: none; padding: 0; margin: 0; }
@@ -55,6 +60,8 @@
         .menu-item:hover { background-color: var(--bg-sidebar-hover); color: var(--text-sidebar-active); }
         .menu-item.active { background-color: var(--primary-blue); color: white; font-weight: 600; border-left: 4px solid white; }
         .icon { font-size: 16px; opacity: 0.8; }
+        
+        .sidebar-footer { padding: 15px 20px; font-size: 11px; color: var(--text-sidebar); text-align: center; border-top: 1px solid #1e293b; background-color: #0f172a; }
 
         /* --- MAIN CONTENT --- */
         .main-content { flex: 1; padding: 25px; overflow-y: auto; background-color: var(--bg-body); width: 100%; }
@@ -62,29 +69,53 @@
         .mobile-header { display: none; align-items: center; gap: 15px; background: #0f172a; color: white; padding: 15px 20px; position: sticky; top: 0; z-index: 99; }
         .hamburger-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; }
 
-        .page-title { font-size: 22px; font-weight: 800; color: var(--text-main); margin: 0 0 20px 0; }
+        /* HEADER & EXPORT BUTTON */
+        .header-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .page-title { font-size: 22px; font-weight: 800; color: var(--text-main); margin: 0; }
+        
+        .action-buttons { display: flex; gap: 10px; }
+        .export-btn { background-color: white; color: var(--text-main); border: 1px solid var(--border-color); padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .export-btn:hover { background-color: var(--neutral-bg); border-color: #cbd5e1; }
+        .logout-btn { background-color: #fee2e2; color: var(--danger-red); border: 1px solid #fca5a5; padding: 8px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; font-size: 13px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .logout-btn:hover { background-color: #fca5a5; color: #b91c1c; }
+
         .section-subtitle { font-size: 14px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin: 25px 0 15px 0; letter-spacing: 0.5px; }
 
         .filter-container { display: flex; justify-content: flex-start; gap: 15px; align-items: flex-end; background-color: var(--bg-card); padding: 15px 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 25px; flex-wrap: wrap; }
-        .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
-        .filter-group label { font-size: 11px; font-weight: 700; color: var(--primary-blue); text-transform: uppercase; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
+        .filter-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
         .filter-group select { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; color: var(--text-main); width: 100%; cursor: pointer; background: white; }
         
         .refresh-btn { background-color: var(--success-green); color: white; border: none; padding: 9px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; font-size: 13px; height: 38px; }
         .refresh-btn:hover { background-color: #059669; }
+        
+        .update-data-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--primary-blue); background-color: #f0f9ff; border: 1px solid #bae6fd; padding: 8px 16px; border-radius: 20px; margin-right: auto; height: 38px;}
+        .update-data-badge::before { content: ''; display: inline-block; width: 8px; height: 8px; background-color: var(--success-green); border-radius: 50%; }
 
-        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 25px; }
-        .kpi-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid var(--border-color); display: flex; flex-direction: column; gap: 15px; }
-        .kpi-header { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
-        .kpi-main-val { font-size: 26px; font-weight: 800; margin: 0; color: var(--text-main); }
-        .kpi-sub-val { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        .kpi-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; text-align: center; background-color: var(--neutral-bg); color: var(--text-muted); }
-        .kpi-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px; }
-        .detail-row { display: flex; justify-content: space-between; align-items: center; }
-        .text-green { color: var(--success-green); font-weight:700; }
-        .text-red { color: var(--danger-red); font-weight:700; }
+        
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; margin-bottom: 25px; }
+        .kpi-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); border-left: 4px solid var(--primary-blue); display: flex; flex-direction: column; gap: 10px; transition: transform 0.2s; }
+        .kpi-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
+        .kpi-header { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1.3; }
+        .kpi-main-val { font-size: 26px; font-weight: 800; margin: 2px 0; color: #0f172a; letter-spacing: -0.5px; }
+        
+        .kpi-sub-wrapper { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 5px; }
+        .kpi-sub-val { font-size: 11px; color: var(--text-muted); display: flex; flex-direction: column; gap: 2px; }
+        .kpi-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 800; }
+        
+        /* Specific Styles for Booking Cards */
+        .booking-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
+        .booking-row > .kpi-card { flex: 1; min-width: 250px; }
 
-        /* --- PERFORMANCE EXTRA SECTION STYLES --- */
+        /* REVISED DETAIL GRID: Changed from 2 cols to 1 col for better readability */
+        .kpi-detail-grid { display: flex; flex-direction: column; gap: 6px; font-size: 12px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: auto; }
+        .detail-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: 6px; }
+        .detail-row:last-child { border-bottom: none; padding-bottom: 0; }
+        .detail-row span:first-child { color: var(--text-muted); font-weight: 600; }
+        
+        .text-green { color: var(--success-green); font-weight:700; font-size: 12px; }
+        .text-red { color: var(--danger-red); font-weight:700; font-size: 12px; }
+/* --- PERFORMANCE EXTRA SECTION STYLES --- */
         .perf-extra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .perf-extra-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between; }
         .perf-card-title { font-size: 14px; font-weight: 700; color: var(--text-main); margin: 0 0 4px 0; }
@@ -143,10 +174,25 @@
             .sidebar.mobile-open { left: 0; }
             .mobile-header { display: flex; }
             .main-content { padding: 15px; height: auto; overflow: visible; }
+            .header-wrapper { flex-direction: column; align-items: flex-start; }
             .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
             .filter-group { width: 100%; }
+            .update-data-badge { width: 100%; justify-content: center; }
             .refresh-btn { width: 100%; justify-content: center; }
             .leaderboard-grid { grid-template-columns: 1fr; }
+            .booking-row { flex-direction: column; }
+        }
+        
+        /* CSS to hide elements during PDF generation */
+        .pdf-export-active .export-btn,
+        .pdf-export-active .logout-btn,
+        .pdf-export-active .refresh-btn,
+        .pdf-export-active .toggle-btn {
+            display: none !important;
+        }
+        .pdf-export-active .table-responsive {
+            overflow: visible !important;
+            max-height: none !important;
         }
     </style>
 </head>
@@ -173,7 +219,7 @@
     <div id="loading-overlay" style="display: none;">
         <div class="loading-card">
             <div class="spinner"></div>
-            <div class="loading-msg">Sedang Menarik Data, Harap Menunggu...</div>
+            <div class="loading-msg" id="loading-msg-text">Sedang Menarik Data, Harap Menunggu...</div>
         </div>
     </div>
 
@@ -185,35 +231,52 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            DASHBOARD BISNIS
-            <button class="hamburger-btn" onclick="toggleSidebar()" style="font-size: 18px; display: none;" id="close-sidebar-btn">✕</button>
+        <div class="sidebar-menu-wrapper">
+            <div class="sidebar-header">
+                DASHBOARD BISNIS
+                <button class="hamburger-btn" onclick="toggleSidebar()" style="font-size: 18px; display: none;" id="close-sidebar-btn">✕</button>
+            </div>
+            
+            <div class="menu-category">Dana & Kredit</div>
+            <ul class="menu-list">
+                <li class="menu-item active" onclick="switchMenu('DPK', this)">
+                    <span class="icon">📊</span> Dashboard DPK
+                </li>
+                <li class="menu-item" onclick="switchMenu('KONSUMER', this)">
+                    <span class="icon">💳</span> Dashboard Konsumer
+                </li>
+                <li class="menu-item" onclick="switchMenu('PRODUKTIF', this)">
+                    <span class="icon">🏭</span> Dashboard Produktif
+                </li>
+            </ul>
+
+            <div class="menu-category">Kinerja Sales</div>
+            <ul class="menu-list">
+                <li class="menu-item" onclick="switchMenu('PERFORMANCE_SALES', this)">
+                    <span class="icon">🎯</span> Performance KPI Sales
+                </li>
+                <li class="menu-item" onclick="switchMenu('BOOKING_SALES', this)">
+                    <span class="icon">📈</span> Performance Booking Sales
+                </li>
+            </ul>
         </div>
         
-        <div class="menu-category">Dana & Kredit</div>
-        <ul class="menu-list">
-            <li class="menu-item active" onclick="switchMenu('DPK', this)">
-                <span class="icon">📊</span> Dashboard DPK
-            </li>
-            <li class="menu-item" onclick="switchMenu('KONSUMER', this)">
-                <span class="icon">💳</span> Dashboard Konsumer
-            </li>
-            <li class="menu-item" onclick="switchMenu('PRODUKTIF', this)">
-                <span class="icon">🏭</span> Dashboard Produktif
-            </li>
-        </ul>
-
-        <div class="menu-category">Kinerja Sales</div>
-        <ul class="menu-list">
-            <li class="menu-item" onclick="switchMenu('PERFORMANCE_SALES', this)">
-                <span class="icon">🎯</span> Performance KPI Sales
-            </li>
-        </ul>
+        <!-- COPYRIGHT FOOTER -->
+        <div class="sidebar-footer">
+            &copy; 2026 adminjng037. All rights reserved.
+        </div>
     </div>
 
     <!-- MAIN CONTENT -->
-    <div class="main-content">
-        <h1 class="page-title" id="page-title">Dashboard DPK Cabang</h1>
+    <div class="main-content" id="dashboard-content">
+        
+        <div class="header-wrapper">
+            <h1 class="page-title" id="page-title">Dashboard DPK Cabang</h1>
+            <div class="action-buttons">
+                <button class="export-btn" onclick="downloadPDF()">⬇ Download PDF</button>
+                <button class="logout-btn" onclick="logout()">🚪 Logout</button>
+            </div>
+        </div>
 
         <div class="filter-container" id="filter-container-area"></div>
         <div id="content-body-area"></div>
@@ -227,6 +290,7 @@
         let activeChart = null;
         let gaugeChart = null;
         let distributionChart = null;
+        let bookingTrendChart = null;
         let inactivityTimer = null;
         let tableSortCol = null;
         let tableSortAsc = true;
@@ -253,8 +317,74 @@
             "PERFORMANCE_SALES": {
                 title: "Performance KPI Sales",
                 type: "performance"
+            },
+            "BOOKING_SALES": {
+                title: "Performance Booking Sales",
+                type: "booking"
             }
         };
+
+        // --- PDF GENERATION LOGIC ---
+        function downloadPDF() {
+            let overlay = document.getElementById("loading-overlay");
+            let msgText = document.getElementById("loading-msg-text");
+            
+            if (msgText) msgText.innerText = "Sedang menyiapkan PDF, Harap Menunggu...";
+            if (overlay) overlay.style.display = "flex";
+
+            const content = document.getElementById('dashboard-content');
+            content.classList.add('pdf-export-active');
+
+            const opt = {
+                margin:       10,
+                filename:     `Dashboard_${CURRENT_MENU}_${new Date().toISOString().split('T')[0]}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true, logging: false },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            
+            if(CURRENT_MENU !== 'BOOKING_SALES') {
+                opt.jsPDF.orientation = 'portrait';
+            }
+
+            setTimeout(() => {
+                html2pdf().set(opt).from(content).save().then(() => {
+                    content.classList.remove('pdf-export-active');
+                    if (overlay) overlay.style.display = "none";
+                    if (msgText) msgText.innerText = "Sedang Menarik Data, Harap Menunggu...";
+                }).catch(err => {
+                    console.error("Gagal export PDF:", err);
+                    content.classList.remove('pdf-export-active');
+                    if (overlay) overlay.style.display = "none";
+                    if (msgText) msgText.innerText = "Sedang Menarik Data, Harap Menunggu...";
+                    alert("Terjadi kesalahan saat mengunduh PDF.");
+                });
+            }, 300);
+        }
+
+        // --- LOGOUT LOGIC ---
+        function logout() {
+            if(confirm("Apakah Anda yakin ingin logout?")) {
+                document.getElementById("login-overlay").style.display = "flex";
+                document.getElementById("login-user").value = "";
+                document.getElementById("login-pass").value = "";
+                document.getElementById("login-error").style.display = "none";
+                RAW = null;
+                clearTimeout(inactivityTimer);
+                
+                document.querySelectorAll('.menu-item').forEach(li => li.classList.remove('active'));
+                document.querySelector('.menu-item').classList.add('active');
+                CURRENT_MENU = "DPK";
+                document.getElementById('page-title').innerText = CONFIG["DPK"].title;
+                document.getElementById("content-body-area").innerHTML = "";
+                document.getElementById("filter-container-area").innerHTML = "";
+                
+                if(window.innerWidth <= 768) {
+                    document.getElementById("mobile-header").style.display = "none";
+                    document.getElementById("sidebar").classList.remove("mobile-open");
+                }
+            }
+        }
 
         function toggleSidebar() {
             document.getElementById("sidebar").classList.toggle("mobile-open");
@@ -356,12 +486,12 @@
                         <select id="outlet-select" onchange="renderStandardDashboard()"><option value="ALL">Semua Cabang</option></select>
                     </div>
                     <div class="filter-group">
-                        <label>PILIH REALISASI TANGGAL</label>
-                        <select id="date-select" onchange="renderStandardDashboard()"></select>
-                    </div>
-                    <div class="filter-group">
                         <label>PILIH TARGET BULAN</label>
                         <select id="target-date-select" onchange="renderStandardDashboard()"></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>PILIH REALISASI TANGGAL</label>
+                        <select id="date-select" onchange="renderStandardDashboard()"></select>
                     </div>
                     <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
                 `;
@@ -465,8 +595,472 @@
                 `;
 
                 renderPerformanceFiltersAndDashboard();
+            } else if(cfg.type === "booking") {
+                filterArea.innerHTML = `
+                    <div class="filter-group">
+                        <label>PRODUK</label>
+                        <select id="book-produk" onchange="renderBookingDashboard()">
+                            <option value="ALL">Semua Produk</option>
+                            <option value="Fleksi">Fleksi</option>
+                            <option value="Griya">Griya</option>
+                            <option value="KUR">KUR</option>
+                            <option value="BWU">BWU</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>TYPE SALES</label>
+                        <select id="book-typesales" onchange="renderBookingDashboard()">
+                            <option value="ALL">Semua Tipe</option>
+                            <option value="BTRM">BTRM</option>
+                            <option value="BSG">BSG</option>
+                            <option value="ARM">ARM</option>
+                            <option value="PRM">PRM</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>BULAN</label>
+                        <select id="book-bulan" onchange="renderBookingDashboard()">
+                            <option value="ALL">Semua Bulan</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>OUTLET</label>
+                        <select id="book-outlet" onchange="renderBookingDashboard()">
+                            <option value="ALL">Semua Outlet</option>
+                        </select>
+                    </div>
+                    
+                    <div class="update-data-badge" id="book-update-date">Update Data: -</div>
+                    <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
+                `;
+
+                contentArea.innerHTML = `
+                    <!-- Baris 1: Konsumer -->
+                    <div class="booking-row" id="booking-row-1">
+                        <div class="kpi-card">
+                            <div class="kpi-header">TOTAL BOOKING FLEKSI</div>
+                            <h2 class="kpi-main-val" id="val-book-fleksi">Rp 0,00 M</h2>
+                            <div class="kpi-sub-val" id="sub-book-fleksi">Akumulasi</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-header">TOTAL BOOKING GRIYA</div>
+                            <h2 class="kpi-main-val" id="val-book-griya">Rp 0,00 M</h2>
+                            <div class="kpi-sub-val" id="sub-book-griya">Akumulasi</div>
+                        </div>
+                        <div class="kpi-card" style="border-left-color: var(--success-green); background-color: var(--neutral-bg);">
+                            <div class="kpi-header">TOTAL BOOKING KONSUMER</div>
+                            <h2 class="kpi-main-val" id="val-book-konsumer">Rp 0,00 M</h2>
+                            <div class="kpi-sub-val" id="sub-book-konsumer">Akumulasi</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Baris 2: Produktif & Total Keseluruhan -->
+                    <div class="booking-row" id="booking-row-2">
+                        <div class="kpi-card">
+                            <div class="kpi-header">TOTAL BOOKING KUR</div>
+                            <h2 class="kpi-main-val" id="val-book-kur">Rp 0,00 M</h2>
+                            <div class="kpi-sub-val" id="sub-book-kur">Akumulasi</div>
+                        </div>
+                        <div class="kpi-card">
+                            <div class="kpi-header">TOTAL BOOKING BWU</div>
+                            <h2 class="kpi-main-val" id="val-book-bwu">Rp 0,00 M</h2>
+                            <div class="kpi-sub-val" id="sub-book-bwu">Akumulasi</div>
+                        </div>
+                        <div class="kpi-card" style="border-left-color: var(--warning-yellow); background-color: var(--neutral-bg);">
+                            <div class="kpi-header">TOTAL BOOKING SBP</div>
+                            <h2 class="kpi-main-val" id="val-book-sbp">Rp 0,00 M</h2>
+                            <div class="kpi-sub-val" id="sub-book-sbp">Akumulasi</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Baris 3: Grand Total -->
+                    <div class="booking-row">
+                        <div class="kpi-card" style="border-left-color: #0f172a; flex: 1;">
+                            <div class="kpi-header">GRAND TOTAL BOOKING KESELURUHAN</div>
+                            <h2 class="kpi-main-val" id="val-book-total" style="font-size: 32px;">Rp 0,00 M</h2>
+                            <div class="kpi-sub-val" id="sub-book-total">Akumulasi</div>
+                        </div>
+                    </div>
+
+                    <!-- TREN BULANAN CHART -->
+                    <div class="section-subtitle">TREN BULANAN</div>
+                    <div class="chart-card">
+                        <div class="perf-card-title">Tren Booking per Bulan</div>
+                        <div class="perf-card-desc">Total nominal booking sales (Rupiah)</div>
+                        <div class="chart-container"><canvas id="bookingTrendChart"></canvas></div>
+                    </div>
+
+                    <!-- LEADERBOARD TOP 10 & BOTTOM 10 BOOKING SALES -->
+                    <div class="section-subtitle">LEADERBOARD BOOKING SALES</div>
+                    <div class="leaderboard-grid">
+                        <div class="leaderboard-card">
+                            <div class="leaderboard-header-row">
+                                <div>
+                                    <div class="leaderboard-title">🏆 Top 10 Booking Sales</div>
+                                    <div class="leaderboard-subtitle">Nama • Outlet • Type Sales • Produk • Nominal Booking</div>
+                                </div>
+                                <button class="toggle-btn" id="toggle-top10-book" onclick="toggleSection('top10-book-list', this)">Sembunyikan</button>
+                            </div>
+                            <div class="leaderboard-list" id="top10-book-list"></div>
+                        </div>
+
+                        <div class="leaderboard-card">
+                            <div class="leaderboard-header-row">
+                                <div>
+                                    <div class="leaderboard-title">📉 Bottom 10 Booking Sales</div>
+                                    <div class="leaderboard-subtitle">Nama • Outlet • Type Sales • Produk • Nominal Booking</div>
+                                </div>
+                                <button class="toggle-btn" id="toggle-bot10-book" onclick="toggleSection('bot10-book-list', this)">Sembunyikan</button>
+                            </div>
+                            <div class="leaderboard-list" id="bot10-book-list"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- TABEL DETAIL DATA BOOKING -->
+                    <div class="section-subtitle">DETAIL DATA BOOKING</div>
+                    <div class="table-card">
+                        <div class="table-responsive">
+                            <table class="kpi-table" id="booking-table">
+                                <thead id="booking-table-head"></thead>
+                                <tbody id="booking-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+                renderBookingFiltersAndDashboard();
             }
         }
+
+        // --- BOOKING SALES LOGIC ---
+        function renderBookingFiltersAndDashboard() {
+            let bookData = RAW.booking;
+            if(!bookData || bookData.length < 2) {
+                document.getElementById("booking-row-1").innerHTML = "<p style='padding: 20px; color: red;'>Data Booking tidak tersedia. Pastikan Apps Script telah diupdate.</p>";
+                return;
+            }
+
+            let outlets = new Set();
+            let periods = [];
+            let addedMonths = new Set();
+
+            for(let r = 1; r < bookData.length; r++) {
+                if(bookData[r][2]) outlets.add(String(bookData[r][2]).trim());
+            }
+
+            let headerRow = bookData[0];
+            for(let c = 4; c < headerRow.length; c++) {
+                let rawCol = headerRow[c];
+                if(rawCol) {
+                    let formattedMonth = formatTargetHeader(rawCol);
+                    if(formattedMonth && formattedMonth.includes("-")) {
+                        if(!addedMonths.has(formattedMonth)) {
+                            addedMonths.add(formattedMonth);
+                            periods.push({ idx: c, val: formattedMonth });
+                        }
+                    }
+                }
+            }
+
+            const selOutl = document.getElementById("book-outlet");
+            const selBulan = document.getElementById("book-bulan");
+
+            if(selOutl && selOutl.options.length <= 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
+            if(selBulan && selBulan.options.length <= 1) {
+                periods.forEach(p => selBulan.add(new Option(p.val, p.idx)));
+            }
+            
+            let today = new Date();
+            let options = { year: 'numeric', month: 'long', day: '2-digit' };
+            document.getElementById("book-update-date").innerHTML = "Update Data: " + today.toLocaleDateString('id-ID', options);
+
+            renderBookingDashboard();
+        }
+
+        function renderBookingDashboard() {
+            let bookData = RAW.booking;
+            if(!bookData || bookData.length < 2) return;
+
+            const fProduk = document.getElementById("book-produk").value;
+            const fType = document.getElementById("book-typesales").value;
+            const fBulanVal = document.getElementById("book-bulan").value;
+            const fOutlet = document.getElementById("book-outlet").value;
+            
+            let headerRow = bookData[0];
+            let monthCols = [];
+            let allMonthCols = [];
+            
+            for(let c = 4; c < headerRow.length; c++) {
+                let h = formatTargetHeader(headerRow[c]);
+                if(h && h.includes("-")) {
+                    let mName = h.split("-")[0]; // Jan, Feb, Mar, etc.
+                    allMonthCols.push({ idx: c, label: mName, fullLabel: h });
+                }
+            }
+
+            if(fBulanVal === "ALL") {
+                monthCols = allMonthCols.map(m => m.idx);
+            } else {
+                monthCols.push(parseInt(fBulanVal));
+            }
+
+            let totals = { "Fleksi": 0, "Griya": 0, "KUR": 0, "BWU": 0 };
+            
+            // Map to aggregate by Sales + Outlet + Type
+            let aggregatedData = {};
+
+            // Sum totals per month for trend chart
+            let monthTotals = allMonthCols.map(() => 0);
+
+            for(let r = 1; r < bookData.length; r++) {
+                let row = bookData[r];
+                let tSales = String(row[0]).trim();
+                let namaSales = String(row[1]).trim();
+                let outlet = String(row[2]).trim();
+                let produk = String(row[3]).trim();
+
+                if(fType !== "ALL" && tSales !== fType) continue;
+                if(fOutlet !== "ALL" && outlet !== fOutlet) continue;
+                if(fProduk !== "ALL" && produk !== fProduk) continue;
+                
+                // Calculate trend line values across all available months matching filters
+                allMonthCols.forEach((m, mIdx) => {
+                    let val = parseFloat(row[m.idx]) || 0;
+                    monthTotals[mIdx] += val;
+                });
+
+                let sumSelectedMonths = 0;
+                monthCols.forEach(idx => {
+                    let val = parseFloat(row[idx]) || 0;
+                    sumSelectedMonths += val;
+                });
+                
+                if(totals[produk] !== undefined) {
+                    totals[produk] += sumSelectedMonths;
+                }
+                
+                if(sumSelectedMonths > 0) {
+                    let key = namaSales + "|" + outlet + "|" + tSales;
+                    if(!aggregatedData[key]) {
+                        aggregatedData[key] = {
+                            sales: namaSales,
+                            type: tSales,
+                            outlet: outlet,
+                            konsumer: 0,
+                            sbp: 0
+                        };
+                    }
+                    if(produk === "Fleksi" || produk === "Griya") {
+                        aggregatedData[key].konsumer += sumSelectedMonths;
+                    } else if(produk === "KUR" || produk === "BWU") {
+                        aggregatedData[key].sbp += sumSelectedMonths;
+                    }
+                }
+            }
+
+            // Convert aggregated to detailedRows
+            let detailedRows = [];
+            for (let k in aggregatedData) {
+                let data = aggregatedData[k];
+                if (data.konsumer > 0) {
+                    detailedRows.push({ ...data, produk: "Total Konsumer", nominal: data.konsumer });
+                }
+                if (data.sbp > 0) {
+                    detailedRows.push({ ...data, produk: "Total SBP", nominal: data.sbp });
+                }
+            }
+
+            let totalKonsumer = totals["Fleksi"] + totals["Griya"];
+            let totalSBP = totals["KUR"] + totals["BWU"];
+            let grandTotal = totalKonsumer + totalSBP;
+            
+            let subtitle = fBulanVal === "ALL" ? "Akumulasi" : `Bulan: ${document.getElementById("book-bulan").options[document.getElementById("book-bulan").selectedIndex].text}`;
+
+            const fmt = (num) => "Rp " + (num / 1e9).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + " M";
+
+            document.getElementById("val-book-fleksi").innerText = fmt(totals["Fleksi"]);
+            document.getElementById("val-book-griya").innerText = fmt(totals["Griya"]);
+            document.getElementById("val-book-konsumer").innerText = fmt(totalKonsumer);
+            
+            document.getElementById("val-book-kur").innerText = fmt(totals["KUR"]);
+            document.getElementById("val-book-bwu").innerText = fmt(totals["BWU"]);
+            document.getElementById("val-book-sbp").innerText = fmt(totalSBP);
+            
+            document.getElementById("val-book-total").innerText = fmt(grandTotal);
+            
+            ["fleksi", "griya", "konsumer", "kur", "bwu", "sbp", "total"].forEach(id => {
+                let el = document.getElementById("sub-book-" + id);
+                if(el) el.innerText = subtitle;
+            });
+
+            // RENDER TREND CHART
+            renderBookingTrendChart(allMonthCols.map(m => m.label), monthTotals);
+
+            // RENDER BOOKING LEADERBOARD (TOP 10 & BOTTOM 10)
+            renderBookingLeaderboard(detailedRows);
+
+            // RENDER TABLE
+            renderBookingTable(detailedRows);
+        }
+
+        function renderBookingTrendChart(labels, dataValues) {
+            // Format data values for chart tooltip/axis (display in Millions or Billions format)
+            // e.g. 24.0M = 24 Milyar or 24 Juta
+            let chartDataValues = dataValues.map(v => (v / 1e9)); // convert to Milyar (M)
+
+            if(bookingTrendChart) bookingTrendChart.destroy();
+            const ctx = document.getElementById('bookingTrendChart').getContext('2d');
+            
+            bookingTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Nominal Booking (M)',
+                        data: chartDataValues,
+                        borderColor: '#0284c7',
+                        borderWidth: 3,
+                        backgroundColor: 'rgba(14, 165, 233, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        pointBackgroundColor: '#eab308',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let val = context.raw || 0;
+                                    return ` Nominal: Rp ${val.toFixed(2).replace('.', ',')} M`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toFixed(1) + 'M';
+                                }
+                            },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderBookingLeaderboard(detailedRows) {
+            let sortedDesc = [...detailedRows].sort((a, b) => b.nominal - a.nominal);
+            let sortedAsc = [...detailedRows].sort((a, b) => a.nominal - b.nominal);
+
+            let top10 = sortedDesc.slice(0, 10);
+            let bot10 = sortedAsc.slice(0, 10);
+
+            const topContainer = document.getElementById("top10-book-list");
+            const botContainer = document.getElementById("bot10-book-list");
+
+            topContainer.innerHTML = "";
+            botContainer.innerHTML = "";
+
+            if(top10.length === 0) {
+                topContainer.innerHTML = "<div style='padding:15px; color:var(--text-muted); text-align:center;'>Tidak ada data</div>";
+            }
+            if(bot10.length === 0) {
+                botContainer.innerHTML = "<div style='padding:15px; color:var(--text-muted); text-align:center;'>Tidak ada data</div>";
+            }
+
+            top10.forEach((s, idx) => {
+                let rankClass = idx === 0 ? "rank-1" : (idx === 1 ? "rank-2" : (idx === 2 ? "rank-3" : "rank-other"));
+                let rankIcon = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : (idx + 1)));
+                let scoreFormatted = "Rp " + (s.nominal / 1e9).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + " M";
+
+                topContainer.innerHTML += `
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-info">
+                            <div class="rank-badge ${rankClass}">${rankIcon}</div>
+                            <div>
+                                <div class="sales-name">${s.sales}</div>
+                                <div class="sales-meta">${s.outlet} • ${s.type} • <b>${s.produk}</b></div>
+                            </div>
+                        </div>
+                        <div class="sales-score score-green">${scoreFormatted}</div>
+                    </div>
+                `;
+            });
+
+            bot10.forEach((s, idx) => {
+                let rankClass = "rank-other";
+                let scoreFormatted = "Rp " + (s.nominal / 1e9).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + " M";
+
+                botContainer.innerHTML += `
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-info">
+                            <div class="rank-badge ${rankClass}">${idx + 1}</div>
+                            <div>
+                                <div class="sales-name">${s.sales}</div>
+                                <div class="sales-meta">${s.outlet} • ${s.type} • <b>${s.produk}</b></div>
+                            </div>
+                        </div>
+                        <div class="sales-score score-red">${scoreFormatted}</div>
+                    </div>
+                `;
+            });
+        }
+        
+        function renderBookingTable(detailedRows) {
+            const tHead = document.getElementById("booking-table-head");
+            const tBody = document.getElementById("booking-table-body");
+            
+            tHead.innerHTML = `
+                <tr>
+                    <th>#</th>
+                    <th>NAMA SALES</th>
+                    <th>TYPE SALES</th>
+                    <th>OUTLET</th>
+                    <th>PRODUK</th>
+                    <th style="text-align: right;">NOMINAL BOOKING</th>
+                </tr>
+            `;
+            
+            detailedRows.sort((a,b) => b.nominal - a.nominal);
+            
+            tBody.innerHTML = "";
+            
+            if(detailedRows.length === 0) {
+                tBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Tidak ada data yang sesuai dengan filter</td></tr>`;
+                return;
+            }
+            
+            detailedRows.forEach((r, i) => {
+                tBody.innerHTML += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td><b>${r.sales}</b></td>
+                        <td>${r.type}</td>
+                        <td>${r.outlet}</td>
+                        <td>${r.produk}</td>
+                        <td style="text-align: right; font-weight: bold; color: var(--primary-blue);">
+                            Rp ${r.nominal.toLocaleString('id-ID')}
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // --- COMMON FUNCTIONS ---
 
         function toggleSection(elementId, btn) {
             let el = document.getElementById(elementId);
@@ -508,6 +1102,16 @@
         }
 
         function renderStandardDashboard() {
+            let selTargetEl = document.getElementById("target-date-select");
+            let selDateEl = document.getElementById("date-select");
+            
+            if (selTargetEl && selDateEl) {
+                if (!selTargetEl.value || !selDateEl.value) {
+                    alert("Peringatan: Harap pilih 'Pilih Target Bulan' dan 'Pilih Realisasi Tanggal' terlebih dahulu!");
+                    return;
+                }
+            }
+
             let D_REAL = CURRENT_MENU === "DPK" ? RAW.realisasi : (CURRENT_MENU === "KONSUMER" ? RAW.realisasi_kons : RAW.realisasi_prod);
             let D_TARG = CURRENT_MENU === "DPK" ? RAW.target : (CURRENT_MENU === "KONSUMER" ? RAW.target_kons : RAW.target_prod);
             if(!D_REAL || !D_TARG) return;
@@ -558,7 +1162,8 @@
                 }
 
                 let rM = sReal / 1e9, tM = sTprop / 1e9, fM = sTfy / 1e9, dM = sDes25 / 1e9;
-                let acv = tM > 0 ? (rM/tM)*100 : 0;
+                let acvProp = tM > 0 ? (rM/tM)*100 : 0;
+                let acvFY = fM > 0 ? (rM/fM)*100 : 0;
                 let cId = "card-" + idx;
 
                 let valEl = document.getElementById(`val-${cId}`);
@@ -570,12 +1175,20 @@
                 let des25El = document.getElementById(`des25-${cId}`);
                 if(des25El) des25El.innerText = formatM(dM);
                 
-                let b = document.getElementById(`badge-${cId}`);
-                if(b) {
-                    b.innerText = acv.toFixed(2).replace('.', ',') + "% ACV";
-                    b.style.backgroundColor = tM===0 ? "#e0e0e0" : (acv>=100 ? "#d1fae5" : "#fee2e2");
-                    b.style.color = tM===0 ? "#777" : (acv>=100 ? "#10b981" : "#ef4444");
-                    if(tM===0) b.innerText = "No Target";
+                let bFY = document.getElementById(`badge-tfy-${cId}`);
+                if(bFY) {
+                    bFY.innerText = acvFY.toFixed(2).replace('.', ',') + "% FY";
+                    bFY.style.backgroundColor = fM===0 ? "#e0e0e0" : (acvFY>=100 ? "#d1fae5" : "#fee2e2");
+                    bFY.style.color = fM===0 ? "#777" : (acvFY>=100 ? "#10b981" : "#ef4444");
+                    if(fM===0) bFY.innerText = "No Target";
+                }
+
+                let bProp = document.getElementById(`badge-tprop-${cId}`);
+                if(bProp) {
+                    bProp.innerText = acvProp.toFixed(2).replace('.', ',') + "% PROP";
+                    bProp.style.backgroundColor = tM===0 ? "#e0e0e0" : (acvProp>=100 ? "#d1fae5" : "#fee2e2");
+                    bProp.style.color = tM===0 ? "#777" : (acvProp>=100 ? "#10b981" : "#ef4444");
+                    if(tM===0) bProp.innerText = "No Target";
                 }
 
                 let setGap = (id, val) => { 
@@ -765,7 +1378,6 @@
 
             if(totalMonitored === 0) { highest.name = "-"; lowest.name = "-"; }
 
-            // Render Top KPI Cards
             const container = document.getElementById("perf-kpi-container");
             container.innerHTML = `
                 <div class="kpi-card" style="border-left-color: var(--primary-blue);">
@@ -805,7 +1417,6 @@
                 </div>
             `;
 
-            // Update Gauge & Distribution Charts
             document.getElementById("gauge-val-text").innerText = avgScoreAll.toFixed(1).replace('.', ',') + "%";
             let badgeEl = document.getElementById("gauge-status-badge");
             if(avgScoreAll >= 100) {
@@ -837,7 +1448,6 @@
                 options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } } } } }
             });
 
-            // --- RENDER TOP 10 & BOTTOM 10 LEADERBOARD ---
             let sortedDesc = [...salesListForLeaderboard(salesRows)].sort((a, b) => b.sortScore - a.sortScore);
             let sortedAsc = [...salesListForLeaderboard(salesRows)].sort((a, b) => a.sortScore - b.sortScore);
 
@@ -887,7 +1497,6 @@
                 `;
             });
 
-            // --- RENDER DETAILED KPI TABLE (WITHOUT KELOLAAN) ---
             const tHead = document.getElementById("kpi-table-head");
             const tBody = document.getElementById("kpi-table-body");
 
@@ -950,6 +1559,7 @@
             renderPerformanceDashboard();
         }
 
+        
         function generateKPICards(productList) {
             const container = document.getElementById("kpi-container");
             container.innerHTML = ""; 
@@ -959,11 +1569,18 @@
                     <div class="kpi-card" id="${safeId}">
                         <div class="kpi-header">${prod.toUpperCase()}</div>
                         <h2 class="kpi-main-val" id="val-${safeId}">0,00 M</h2>
-                        <div class="kpi-sub-val">
-                            <span id="tfy-${safeId}">T_FY: 0,00 M</span>
-                            <span id="tprops-${safeId}">T_Props: 0,00 M</span>
+                        
+                        <div class="kpi-sub-wrapper">
+                            <div class="kpi-sub-val">
+                                <span id="tfy-${safeId}">T_FY: 0,00 M</span>
+                                <span id="tprops-${safeId}">T_Props: 0,00 M</span>
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
+                                <div class="kpi-badge" id="badge-tfy-${safeId}" style="font-size:11px; padding:3px 8px;">0,00% FY</div>
+                                <div class="kpi-badge" id="badge-tprop-${safeId}" style="font-size:11px; padding:3px 8px;">0,00% PROP</div>
+                            </div>
                         </div>
-                        <div class="kpi-badge" id="badge-${safeId}">0,00% ACV</div>
+                        
                         <div class="kpi-detail-grid">
                             <div class="detail-row"><span>GAP Prop</span><span id="gapprop-${safeId}">0,00 M</span></div>
                             <div class="detail-row"><span>GAP FY</span><span id="gapfy-${safeId}">0,00 M</span></div>
@@ -974,8 +1591,7 @@
                 container.innerHTML += html;
             });
         }
-
-        function formatM(num) { return Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M'; }
+function formatM(num) { return Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M'; }
         function formatGap(num) { return (num < 0 ? "-" : "+") + formatM(num); }
 
         function getTargetVal(dataTarget, produk, outlet, colIdx) {
