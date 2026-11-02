@@ -20,16 +20,23 @@
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
 
         /* --- LOGIN & LOADING OVERLAY STYLE --- */
-        #login-overlay, #loading-overlay {
+        #login-overlay, #loading-overlay, #alert-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(15, 23, 42, 0.85); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 15px;
         }
         #loading-overlay { z-index: 10000; display: none; background-color: rgba(15, 23, 42, 0.9); }
+        #alert-overlay { z-index: 10001; display: none; background-color: rgba(15, 23, 42, 0.6); }
         
-        .loading-card {
+        .loading-card, .alert-card {
             background: white; padding: 35px 40px; border-radius: 14px; text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 380px; width: 100%;
         }
+        .alert-card { padding: 25px 30px; gap: 15px; }
+        .alert-card h3 { margin: 0; font-size: 18px; color: var(--bg-sidebar); }
+        .alert-card p { margin: 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+        .alert-btn { background-color: var(--primary-blue); color: white; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 700; cursor: pointer; transition: background 0.2s; font-size: 14px; width: 100%; }
+        .alert-btn:hover { background-color: #0284c7; }
+
         .spinner {
             width: 50px; height: 50px; border: 5px solid var(--border-color); border-top: 5px solid var(--primary-blue);
             border-radius: 50%; animation: spin 1s linear infinite;
@@ -107,7 +114,6 @@
         .booking-row { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
         .booking-row > .kpi-card { flex: 1; min-width: 250px; }
 
-        /* REVISED DETAIL GRID: Changed from 2 cols to 1 col for better readability */
         .kpi-detail-grid { display: flex; flex-direction: column; gap: 6px; font-size: 12px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-top: auto; }
         .detail-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: 6px; }
         .detail-row:last-child { border-bottom: none; padding-bottom: 0; }
@@ -115,7 +121,8 @@
         
         .text-green { color: var(--success-green); font-weight:700; font-size: 12px; }
         .text-red { color: var(--danger-red); font-weight:700; font-size: 12px; }
-/* --- PERFORMANCE EXTRA SECTION STYLES --- */
+
+        /* --- PERFORMANCE EXTRA SECTION STYLES --- */
         .perf-extra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .perf-extra-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between; }
         .perf-card-title { font-size: 14px; font-weight: 700; color: var(--text-main); margin: 0 0 4px 0; }
@@ -212,6 +219,15 @@
             </div>
             <div id="login-error" class="login-error">Username atau Password salah!</div>
             <button class="login-btn" onclick="processLogin()">MASUK</button>
+        </div>
+    </div>
+
+    <!-- POP-UP ALERT PENGINGAT TARGET & REALISASI -->
+    <div id="alert-overlay" style="display: none;">
+        <div class="alert-card">
+            <h3>Perhatian</h3>
+            <p>Jangan Lupa Pilih Target dan Realisasi ya...</p>
+            <button class="alert-btn" onclick="closeCustomAlert()">OK</button>
         </div>
     </div>
 
@@ -324,6 +340,17 @@
             }
         };
 
+        // --- CUSTOM POP-UP ALERT ---
+        function showAlert() {
+            let overlay = document.getElementById("alert-overlay");
+            if(overlay) overlay.style.display = "flex";
+        }
+
+        function closeCustomAlert() {
+            let overlay = document.getElementById("alert-overlay");
+            if(overlay) overlay.style.display = "none";
+        }
+
         // --- PDF GENERATION LOGIC ---
         function downloadPDF() {
             let overlay = document.getElementById("loading-overlay");
@@ -409,6 +436,11 @@
                 }
                 resetInactivityTimer();
                 if(!RAW) fetchAPI(false);
+                
+                // Munculkan pop-up saat pertama kali login masuk ke DPK (Dana & Kredit)
+                if(CONFIG[CURRENT_MENU].type === "standard") {
+                    showAlert();
+                }
             } else {
                 err.style.display = "block";
             }
@@ -438,6 +470,12 @@
             document.getElementById('page-title').innerText = CONFIG[menuName].title;
             
             if(window.innerWidth <= 768) toggleSidebar();
+            
+            // Jika berpindah ke menu dalam kategori Dana & Kredit (type === "standard"), munculkan pop-up pengingat
+            if(CONFIG[menuName].type === "standard") {
+                showAlert();
+            }
+
             renderData();
         }
 
@@ -793,7 +831,7 @@
             for(let c = 4; c < headerRow.length; c++) {
                 let h = formatTargetHeader(headerRow[c]);
                 if(h && h.includes("-")) {
-                    let mName = h.split("-")[0]; // Jan, Feb, Mar, etc.
+                    let mName = h.split("-")[0];
                     allMonthCols.push({ idx: c, label: mName, fullLabel: h });
                 }
             }
@@ -805,11 +843,7 @@
             }
 
             let totals = { "Fleksi": 0, "Griya": 0, "KUR": 0, "BWU": 0 };
-            
-            // Map to aggregate by Sales + Outlet + Type
             let aggregatedData = {};
-
-            // Sum totals per month for trend chart
             let monthTotals = allMonthCols.map(() => 0);
 
             for(let r = 1; r < bookData.length; r++) {
@@ -823,7 +857,6 @@
                 if(fOutlet !== "ALL" && outlet !== fOutlet) continue;
                 if(fProduk !== "ALL" && produk !== fProduk) continue;
                 
-                // Calculate trend line values across all available months matching filters
                 allMonthCols.forEach((m, mIdx) => {
                     let val = parseFloat(row[m.idx]) || 0;
                     monthTotals[mIdx] += val;
@@ -858,7 +891,6 @@
                 }
             }
 
-            // Convert aggregated to detailedRows
             let detailedRows = [];
             for (let k in aggregatedData) {
                 let data = aggregatedData[k];
@@ -893,20 +925,13 @@
                 if(el) el.innerText = subtitle;
             });
 
-            // RENDER TREND CHART
             renderBookingTrendChart(allMonthCols.map(m => m.label), monthTotals);
-
-            // RENDER BOOKING LEADERBOARD (TOP 10 & BOTTOM 10)
             renderBookingLeaderboard(detailedRows);
-
-            // RENDER TABLE
             renderBookingTable(detailedRows);
         }
 
         function renderBookingTrendChart(labels, dataValues) {
-            // Format data values for chart tooltip/axis (display in Millions or Billions format)
-            // e.g. 24.0M = 24 Milyar or 24 Juta
-            let chartDataValues = dataValues.map(v => (v / 1e9)); // convert to Milyar (M)
+            let chartDataValues = dataValues.map(v => (v / 1e9));
 
             if(bookingTrendChart) bookingTrendChart.destroy();
             const ctx = document.getElementById('bookingTrendChart').getContext('2d');
@@ -1036,7 +1061,6 @@
             `;
             
             detailedRows.sort((a,b) => b.nominal - a.nominal);
-            
             tBody.innerHTML = "";
             
             if(detailedRows.length === 0) {
@@ -1107,7 +1131,6 @@
             
             if (selTargetEl && selDateEl) {
                 if (!selTargetEl.value || !selDateEl.value) {
-                    alert("Peringatan: Harap pilih 'Pilih Target Bulan' dan 'Pilih Realisasi Tanggal' terlebih dahulu!");
                     return;
                 }
             }
@@ -1126,7 +1149,7 @@
             let tfyIdx = -1; 
             for(let i=2; i<D_TARG[1].length; i++) { if(formatTargetHeader(D_TARG[1][i]) === "Dec-26") tfyIdx = i; }
 
-            let arrTfy = [], arrTprop = [], arrDes25 = [], arrReal = [];
+            let productMetrics = {};
 
             CONFIG[CURRENT_MENU].products.forEach((prodName, idx) => {
                 let sReal = 0, sDes25 = 0, sTprop = 0, sTfy = 0;
@@ -1155,13 +1178,11 @@
                     }
                     sTprop = getTargetVal(D_TARG, prodName, sOutlet, sTargIdx);
                     sTfy = getTargetVal(D_TARG, prodName, sOutlet, tfyIdx);
-                    
-                    if(!isTotalCard) {
-                         arrTfy.push(sTfy / 1e9); arrTprop.push(sTprop / 1e9); arrDes25.push(sDes25 / 1e9); arrReal.push(sReal / 1e9);
-                    }
                 }
 
                 let rM = sReal / 1e9, tM = sTprop / 1e9, fM = sTfy / 1e9, dM = sDes25 / 1e9;
+                productMetrics[prodName] = { rM, tM, fM, dM };
+
                 let acvProp = tM > 0 ? (rM/tM)*100 : 0;
                 let acvFY = fM > 0 ? (rM/fM)*100 : 0;
                 let cId = "card-" + idx;
@@ -1187,7 +1208,7 @@
                 if(bProp) {
                     bProp.innerText = acvProp.toFixed(2).replace('.', ',') + "% PROP";
                     bProp.style.backgroundColor = tM===0 ? "#e0e0e0" : (acvProp>=100 ? "#d1fae5" : "#fee2e2");
-                    bProp.style.color = tM===0 ? "#777" : (acvProp>=100 ? "#10b981" : "#ef4444");
+                    bProp.style.color = tM===0 ? "#777" : (acvProp>=100 ? "#10b981" : "#10b981");
                     if(tM===0) bProp.innerText = "No Target";
                 }
 
@@ -1198,6 +1219,32 @@
                 setGap(`gapprop-${cId}`, rM - tM);
                 setGap(`gapfy-${cId}`, rM - fM);
                 setGap(`gapreborn-${cId}`, rM - dM);
+            });
+
+            let arrTfy = [], arrTprop = [], arrDes25 = [], arrReal = [];
+            CONFIG[CURRENT_MENU].chartLabels.forEach(label => {
+                let pName = "";
+                if(CURRENT_MENU === "DPK") {
+                    if(label === "DEPOSITO") pName = "Deposito";
+                    else if(label === "GIRO") pName = "Giro";
+                    else if(label === "TABUNGAN ALL") pName = "Tabungan All";
+                    else if(label === "TABUNGAN WEM") pName = "Tabungan WEM Private";
+                    else if(label === "TABUNGAN EXC WEM") pName = "Tabungan exc. WEM Private";
+                } else if(CURRENT_MENU === "KONSUMER") {
+                    if(label === "FLEKSI") pName = "Fleksi";
+                    else if(label === "GRIYA") pName = "Griya";
+                    else if(label === "INSTAN") pName = "Instan";
+                } else if(CURRENT_MENU === "PRODUKTIF") {
+                    if(label === "KUR") pName = "KUR";
+                    else if(label === "BWU") pName = "BWU";
+                    else if(label === "BCM") pName = "BCM";
+                }
+                
+                let m = productMetrics[pName] || { fM: 0, tM: 0, dM: 0, rM: 0 };
+                arrTfy.push(m.fM);
+                arrTprop.push(m.tM);
+                arrDes25.push(m.dM);
+                arrReal.push(m.rM);
             });
 
             if(activeChart) activeChart.destroy();
@@ -1591,7 +1638,7 @@
                 container.innerHTML += html;
             });
         }
-function formatM(num) { return Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M'; }
+        function formatM(num) { return Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M'; }
         function formatGap(num) { return (num < 0 ? "-" : "+") + formatM(num); }
 
         function getTargetVal(dataTarget, produk, outlet, colIdx) {
