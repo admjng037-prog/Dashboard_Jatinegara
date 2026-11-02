@@ -9,17 +9,30 @@
         :root {
             --bg-sidebar: #0f172a; --bg-sidebar-hover: #1e293b; --text-sidebar: #94a3b8; --text-sidebar-active: #ffffff;
             --bg-body: #f1f5f9; --bg-card: #ffffff; --text-main: #334155; --text-muted: #64748b; --border-color: #e2e8f0;
-            --primary-blue: #0ea5e9; --success-green: #10b981; --danger-red: #ef4444; --neutral-bg: #f8fafc;
+            --primary-blue: #0ea5e9; --success-green: #10b981; --warning-yellow: #f59e0b; --danger-red: #ef4444; --neutral-bg: #f8fafc;
         }
 
         * { box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
 
-        /* --- LOGIN MODAL STYLE --- */
-        #login-overlay {
+        /* --- LOGIN & LOADING OVERLAY STYLE --- */
+        #login-overlay, #loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(15, 23, 42, 0.85); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 15px;
         }
+        #loading-overlay { z-index: 10000; display: none; background-color: rgba(15, 23, 42, 0.9); }
+        
+        .loading-card {
+            background: white; padding: 35px 40px; border-radius: 14px; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 380px; width: 100%;
+        }
+        .spinner {
+            width: 50px; height: 50px; border: 5px solid var(--border-color); border-top: 5px solid var(--primary-blue);
+            border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-msg { font-size: 15px; font-weight: 700; color: var(--text-main); letter-spacing: 0.3px; line-height: 1.4; }
+
         .login-card {
             background: white; padding: 30px; border-radius: 12px; width: 100%; max-width: 350px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px;
@@ -46,11 +59,11 @@
         /* --- MAIN CONTENT --- */
         .main-content { flex: 1; padding: 25px; overflow-y: auto; background-color: var(--bg-body); width: 100%; }
         
-        /* Tombol Hamburger untuk HP */
         .mobile-header { display: none; align-items: center; gap: 15px; background: #0f172a; color: white; padding: 15px 20px; position: sticky; top: 0; z-index: 99; }
         .hamburger-btn { background: none; border: none; color: white; font-size: 22px; cursor: pointer; }
 
         .page-title { font-size: 22px; font-weight: 800; color: var(--text-main); margin: 0 0 20px 0; }
+        .section-subtitle { font-size: 14px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin: 25px 0 15px 0; letter-spacing: 0.5px; }
 
         .filter-container { display: flex; justify-content: flex-start; gap: 15px; align-items: flex-end; background-color: var(--bg-card); padding: 15px 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 25px; flex-wrap: wrap; }
         .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
@@ -59,8 +72,6 @@
         
         .refresh-btn { background-color: var(--success-green); color: white; border: none; padding: 9px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; font-size: 13px; height: 38px; }
         .refresh-btn:hover { background-color: #059669; }
-
-        .loading-text { font-size: 13px; font-weight: 700; color: var(--primary-blue); margin-left: auto; align-self: center; }
 
         .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .kpi-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid var(--border-color); display: flex; flex-direction: column; gap: 15px; }
@@ -73,11 +84,59 @@
         .text-green { color: var(--success-green); font-weight:700; }
         .text-red { color: var(--danger-red); font-weight:700; }
 
+        /* --- PERFORMANCE EXTRA SECTION STYLES --- */
+        .perf-extra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .perf-extra-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between; }
+        .perf-card-title { font-size: 14px; font-weight: 700; color: var(--text-main); margin: 0 0 4px 0; }
+        .perf-card-desc { font-size: 12px; color: var(--text-muted); margin: 0 0 15px 0; }
+        .gauge-container { position: relative; width: 100%; height: 200px; display: flex; justify-content: center; align-items: center; }
+        .gauge-center-text { position: absolute; bottom: 20px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .gauge-val { font-size: 28px; font-weight: 800; color: var(--text-main); line-height: 1.1; }
+        .gauge-target { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .status-badge-container { margin-top: 10px; text-align: center; }
+        .status-badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+        .status-badge.red { background-color: #fee2e2; color: var(--danger-red); }
+        .status-badge.green { background-color: #d1fae5; color: var(--success-green); }
+
+        /* --- LEADERBOARD STYLES --- */
+        .leaderboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .leaderboard-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); display: flex; flex-direction: column; gap: 15px; }
+        .leaderboard-header-row { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+        .leaderboard-title { font-size: 15px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; }
+        .leaderboard-subtitle { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .toggle-btn { background-color: var(--neutral-bg); border: 1px solid var(--border-color); color: var(--text-muted); padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .toggle-btn:hover { background-color: var(--border-color); color: var(--text-main); }
+        .leaderboard-list { display: flex; flex-direction: column; gap: 10px; max-height: 500px; overflow-y: auto; padding-right: 4px; }
+        .leaderboard-item { display: flex; justify-content: space-between; align-items: center; background-color: var(--neutral-bg); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .leaderboard-info { display: flex; align-items: center; gap: 12px; }
+        .rank-badge { width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; border-radius: 50%; font-weight: 800; font-size: 12px; flex-shrink: 0; }
+        .rank-1 { background-color: #fef08a; color: #854d0e; border: 1px solid #facc15; }
+        .rank-2 { background-color: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .rank-3 { background-color: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
+        .rank-other { background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
+        .sales-name { font-size: 13px; font-weight: 700; color: var(--text-main); }
+        .sales-meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+        .sales-score { font-size: 13px; font-weight: 800; padding: 4px 10px; border-radius: 6px; }
+        .score-green { background-color: #d1fae5; color: var(--success-green); }
+        .score-red { background-color: #fee2e2; color: var(--danger-red); }
+
+        /* --- DETAILED TABLE STYLES --- */
+        .table-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 25px; overflow: hidden; }
+        .table-responsive { width: 100%; overflow-x: auto; max-height: 600px; }
+        .kpi-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; white-space: nowrap; }
+        .kpi-table th { background-color: #0f172a; color: white; padding: 12px 14px; font-weight: 700; position: sticky; top: 0; z-index: 10; cursor: pointer; user-select: none; }
+        .kpi-table th:hover { background-color: #1e293b; }
+        .kpi-table td { padding: 10px 14px; border-bottom: 1px solid var(--border-color); color: var(--text-main); }
+        .kpi-table tr:hover { background-color: var(--neutral-bg); }
+        .badge-cell { display: inline-block; padding: 3px 8px; border-radius: 6px; font-weight: 700; font-size: 12px; text-align: center; min-width: 65px; }
+        .badge-cell.green { background-color: #d1fae5; color: var(--success-green); }
+        .badge-cell.red { background-color: #fee2e2; color: var(--danger-red); }
+        .badge-cell.ns { background-color: var(--neutral-bg); color: var(--text-muted); border: 1px solid var(--border-color); }
+
         .chart-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 25px; }
         .chart-header { font-size: 15px; font-weight: 700; margin-bottom: 15px; }
         .chart-container { position: relative; height: 320px; width: 100%; }
 
-        /* --- RESPONSIVE MEDIA QUERIES (HP FRIENDLY) --- */
         @media (max-width: 768px) {
             body { flex-direction: column; overflow: auto; height: auto; }
             .sidebar { position: fixed; top: 0; left: -260px; height: 100%; z-index: 1000; box-shadow: 5px 0 15px rgba(0,0,0,0.3); }
@@ -87,7 +146,7 @@
             .filter-container { flex-direction: column; align-items: stretch; gap: 12px; }
             .filter-group { width: 100%; }
             .refresh-btn { width: 100%; justify-content: center; }
-            .loading-text { margin-left: 0; text-align: center; }
+            .leaderboard-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -110,7 +169,15 @@
         </div>
     </div>
 
-    <!-- HEADER KHUSUS HP (TOMBOL MENU HAMBURGER) -->
+    <!-- ANIMASI LOADING SAAT MENARIK DATA -->
+    <div id="loading-overlay" style="display: none;">
+        <div class="loading-card">
+            <div class="spinner"></div>
+            <div class="loading-msg">Sedang Menarik Data, Harap Menunggu...</div>
+        </div>
+    </div>
+
+    <!-- HEADER HP -->
     <div class="mobile-header" id="mobile-header" style="display: none;">
         <button class="hamburger-btn" onclick="toggleSidebar()">☰</button>
         <span style="font-weight: 700; font-size: 16px;">DASHBOARD BISNIS</span>
@@ -135,35 +202,21 @@
                 <span class="icon">🏭</span> Dashboard Produktif
             </li>
         </ul>
+
+        <div class="menu-category">Kinerja Sales</div>
+        <ul class="menu-list">
+            <li class="menu-item" onclick="switchMenu('PERFORMANCE_SALES', this)">
+                <span class="icon">🎯</span> Performance KPI Sales
+            </li>
+        </ul>
     </div>
 
     <!-- MAIN CONTENT -->
     <div class="main-content">
         <h1 class="page-title" id="page-title">Dashboard DPK Cabang</h1>
 
-        <div class="filter-container">
-            <div class="filter-group">
-                <label>OUTLET</label>
-                <select id="outlet-select" onchange="renderData()"><option value="ALL">Semua Cabang</option></select>
-            </div>
-            <div class="filter-group">
-                <label>PILIH REALISASI TANGGAL</label>
-                <select id="date-select" onchange="renderData()"></select>
-            </div>
-            <div class="filter-group">
-                <label>PILIH TARGET BULAN</label>
-                <select id="target-date-select" onchange="renderData()"></select>
-            </div>
-            <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
-            <div id="loading-indicator" class="loading-text">🔄 Mengambil Data...</div>
-        </div>
-
-        <div class="kpi-grid" id="kpi-container"></div>
-
-        <div class="chart-card">
-            <div class="chart-header">Pencapaian Target Propotional per Produk</div>
-            <div class="chart-container"><canvas id="mainChart"></canvas></div>
-        </div>
+        <div class="filter-container" id="filter-container-area"></div>
+        <div id="content-body-area"></div>
     </div>
 
     <script>
@@ -172,33 +225,46 @@
         let RAW = null; 
         let CURRENT_MENU = "DPK"; 
         let activeChart = null;
+        let gaugeChart = null;
+        let distributionChart = null;
         let inactivityTimer = null;
+        let tableSortCol = null;
+        let tableSortAsc = true;
 
         const CONFIG = {
             "DPK": {
                 title: "Dashboard DPK Cabang",
                 products: ["Total DPK", "Tabungan All", "Tabungan exc. WEM Private", "Tabungan WEM Private", "Giro", "Deposito"],
-                chartLabels: ["DEPOSITO", "GIRO", "TABUNGAN ALL", "TABUNGAN WEM", "TABUNGAN EXC WEM"]
+                chartLabels: ["DEPOSITO", "GIRO", "TABUNGAN ALL", "TABUNGAN WEM", "TABUNGAN EXC WEM"],
+                type: "standard"
             },
             "KONSUMER": {
                 title: "Dashboard Kredit Konsumer",
                 products: ["Total Konsumer", "Fleksi", "Griya", "Instan"],
-                chartLabels: ["FLEKSI", "GRIYA", "INSTAN"]
+                chartLabels: ["FLEKSI", "GRIYA", "INSTAN"],
+                type: "standard"
             },
             "PRODUKTIF": {
                 title: "Dashboard Kredit Produktif",
                 products: ["Total Produktif", "KUR", "BWU", "BCM"],
-                chartLabels: ["KUR", "BWU", "BCM"]
+                chartLabels: ["KUR", "BWU", "BCM"],
+                type: "standard"
+            },
+            "PERFORMANCE_SALES": {
+                title: "Performance KPI Sales",
+                type: "performance"
             }
         };
 
-        // Fungsi buka/tutup menu di HP
         function toggleSidebar() {
-            const sidebar = document.getElementById("sidebar");
-            sidebar.classList.toggle("mobile-open");
+            document.getElementById("sidebar").classList.toggle("mobile-open");
         }
 
-        // --- SISTEM LOGIN & AUTO LOGOUT 15 MENIT ---
+        function showLoading(show) {
+            let overlay = document.getElementById("loading-overlay");
+            if(overlay) overlay.style.display = show ? "flex" : "none";
+        }
+
         function processLogin() {
             let u = document.getElementById("login-user").value.trim();
             let p = document.getElementById("login-pass").value.trim();
@@ -207,13 +273,10 @@
             if(u === "JNG" && p === "JNG037") {
                 document.getElementById("login-overlay").style.display = "none";
                 err.style.display = "none";
-                
-                // Tampilkan header khusus HP jika dibuka di layar kecil
                 if(window.innerWidth <= 768) {
                     document.getElementById("mobile-header").style.display = "flex";
                     document.getElementById("close-sidebar-btn").style.display = "block";
                 }
-
                 resetInactivityTimer();
                 if(!RAW) fetchAPI(false);
             } else {
@@ -221,9 +284,7 @@
             }
         }
 
-        function checkEnter(e) {
-            if(e.key === "Enter") processLogin();
-        }
+        function checkEnter(e) { if(e.key === "Enter") processLogin(); }
 
         function resetInactivityTimer() {
             clearTimeout(inactivityTimer);
@@ -236,26 +297,17 @@
         ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
             document.addEventListener(evt, resetInactivityTimer, true);
         });
-        // ------------------------------------------
 
         function switchMenu(menuName, el) {
             if(CURRENT_MENU === menuName) return;
             CURRENT_MENU = menuName;
             
             document.querySelectorAll('.menu-item').forEach(li => li.classList.remove('active'));
-            el.classList.add('active');
+            if(el) el.classList.add('active');
             
             document.getElementById('page-title').innerText = CONFIG[menuName].title;
             
-            document.getElementById("date-select").innerHTML = "";
-            document.getElementById("target-date-select").innerHTML = "";
-            document.getElementById("outlet-select").innerHTML = '<option value="ALL">Semua Cabang</option>';
-            
-            // Tutup sidebar otomatis di HP setelah menu dipilih
-            if(window.innerWidth <= 768) {
-                toggleSidebar();
-            }
-
+            if(window.innerWidth <= 768) toggleSidebar();
             renderData();
         }
 
@@ -265,7 +317,8 @@
         }
 
         function formatTargetHeader(val) {
-            if(!val) return ""; let d = new Date(val);
+            if(!val) return ""; 
+            let d = new Date(val);
             if(!isNaN(d.getTime())) {
                 const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
                 return months[d.getMonth()] + "-" + String(d.getFullYear()).slice(-2);
@@ -274,106 +327,191 @@
         }
 
         async function fetchAPI(isManualRefresh = false) {
-            const loadingInd = document.getElementById("loading-indicator");
-            loadingInd.style.display = "block";
-            loadingInd.innerText = "🔄 Mengambil Data...";
-
+            showLoading(true);
             try {
                 const res = await fetch(API_URL);
                 RAW = await res.json();
-                
                 if(RAW.status === "sukses") {
-                    loadingInd.style.display = "none";
                     renderData();
                     if(isManualRefresh) alert("Data berhasil diperbarui!");
                 }
             } catch(e) {
-                loadingInd.innerText = "❌ Gagal mengambil data.";
+                console.error("Gagal mengambil data API", e);
+                alert("Gagal mengambil data dari server.");
+            } finally {
+                showLoading(false);
             }
         }
 
-        function setupFilters(realData, targetData) {
-            if(!realData || !targetData) return;
-            
-            let colReal = realData[1];
-            let colTarget = targetData[1];
-            
+        function renderData() {
+            if(!RAW) return;
+            const cfg = CONFIG[CURRENT_MENU];
+            const contentArea = document.getElementById("content-body-area");
+            const filterArea = document.getElementById("filter-container-area");
+
+            if(cfg.type === "standard") {
+                filterArea.innerHTML = `
+                    <div class="filter-group">
+                        <label>OUTLET</label>
+                        <select id="outlet-select" onchange="renderStandardDashboard()"><option value="ALL">Semua Cabang</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>PILIH REALISASI TANGGAL</label>
+                        <select id="date-select" onchange="renderStandardDashboard()"></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>PILIH TARGET BULAN</label>
+                        <select id="target-date-select" onchange="renderStandardDashboard()"></select>
+                    </div>
+                    <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
+                `;
+
+                contentArea.innerHTML = `
+                    <div class="kpi-grid" id="kpi-container"></div>
+                    <div class="chart-card">
+                        <div class="chart-header">Pencapaian Target Propotional per Produk</div>
+                        <div class="chart-container"><canvas id="mainChart"></canvas></div>
+                    </div>
+                `;
+
+                renderStandardFiltersAndDashboard();
+
+            } else if(cfg.type === "performance") {
+                filterArea.innerHTML = `
+                    <div class="filter-group">
+                        <label>OUTLET</label>
+                        <select id="perf-outlet" onchange="renderPerformanceDashboard()"><option value="ALL">Semua Outlet</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>TYPE SALES</label>
+                        <select id="perf-typesales" onchange="renderPerformanceDashboard()"><option value="ALL">Semua Tipe</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>PERIODE (BULAN)</label>
+                        <select id="perf-period" onchange="renderPerformanceDashboard()">
+                            <option value="ALL">Semua Bulan (Rata-rata)</option>
+                        </select>
+                    </div>
+                    <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
+                `;
+
+                contentArea.innerHTML = `
+                    <div class="kpi-grid" id="perf-kpi-container"></div>
+                    
+                    <div class="section-subtitle">Average KPI Sales</div>
+                    <div class="perf-extra-grid">
+                        <div class="perf-extra-card">
+                            <div>
+                                <h3 class="perf-card-title">Rata-rata KPI Seluruh Sales</h3>
+                                <p class="perf-card-desc">Indikator pencapaian terhadap target 100%</p>
+                            </div>
+                            <div class="gauge-container">
+                                <canvas id="gaugeChart"></canvas>
+                                <div class="gauge-center-text">
+                                    <span class="gauge-val" id="gauge-val-text">0,0%</span>
+                                    <span class="gauge-target">Target 100%</span>
+                                </div>
+                            </div>
+                            <div class="status-badge-container">
+                                <span class="status-badge red" id="gauge-status-badge">Di bawah target (Merah)</span>
+                            </div>
+                        </div>
+
+                        <div class="perf-extra-card">
+                            <div>
+                                <h3 class="perf-card-title">Distribusi KPI per Kelompok Performa</h3>
+                                <p class="perf-card-desc">Jumlah sales: &gt;100% (hijau), 90–100% (kuning), &lt;90% (merah)</p>
+                            </div>
+                            <div class="chart-container" style="height: 220px;">
+                                <canvas id="distributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-subtitle">Leaderboard KPI Sales</div>
+                    <div class="leaderboard-grid">
+                        <div class="leaderboard-card">
+                            <div class="leaderboard-header-row">
+                                <div>
+                                    <div class="leaderboard-title">🏆 Top 10 KPI Sales</div>
+                                    <div class="leaderboard-subtitle">Nama • Outlet • Type Sales • KPI%</div>
+                                </div>
+                                <button class="toggle-btn" id="toggle-top10" onclick="toggleSection('top10-list', this)">Sembunyikan</button>
+                            </div>
+                            <div class="leaderboard-list" id="top10-list"></div>
+                        </div>
+
+                        <div class="leaderboard-card">
+                            <div class="leaderboard-header-row">
+                                <div>
+                                    <div class="leaderboard-title">📉 Bottom 10 KPI Sales</div>
+                                    <div class="leaderboard-subtitle">Nama • Outlet • Type Sales • KPI%</div>
+                                </div>
+                                <button class="toggle-btn" id="toggle-bot10" onclick="toggleSection('bot10-list', this)">Sembunyikan</button>
+                            </div>
+                            <div class="leaderboard-list" id="bot10-list"></div>
+                        </div>
+                    </div>
+
+                    <div class="section-subtitle">Tabel Rekapitulasi KPI Sales</div>
+                    <div class="table-card">
+                        <div class="table-responsive">
+                            <table class="kpi-table" id="kpi-sales-table">
+                                <thead id="kpi-table-head"></thead>
+                                <tbody id="kpi-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+                renderPerformanceFiltersAndDashboard();
+            }
+        }
+
+        function toggleSection(elementId, btn) {
+            let el = document.getElementById(elementId);
+            if(el.style.display === "none") {
+                el.style.display = "flex";
+                btn.innerText = "Sembunyikan";
+            } else {
+                el.style.display = "none";
+                btn.innerText = "Tampilkan";
+            }
+        }
+
+        function renderStandardFiltersAndDashboard() {
+            let D_REAL = CURRENT_MENU === "DPK" ? RAW.realisasi : (CURRENT_MENU === "KONSUMER" ? RAW.realisasi_kons : RAW.realisasi_prod);
+            let D_TARG = CURRENT_MENU === "DPK" ? RAW.target : (CURRENT_MENU === "KONSUMER" ? RAW.target_kons : RAW.target_prod);
+            if(!D_REAL || !D_TARG) return;
+
+            let colReal = D_REAL[1], colTarget = D_TARG[1];
             let dates = [], targets = [], outlets = new Set();
-            
             for(let i = 5; i < colReal.length - 1; i++) {
                 let fDate = formatDate(colReal[i]);
                 if(fDate) dates.push({ idx: i, val: fDate });
             }
             for(let i = 2; i < colTarget.length; i++) {
                 let tLabel = formatTargetHeader(colTarget[i]);
-                if(tLabel && tLabel.includes("-") && tLabel.length <= 6) {
-                    targets.push({ idx: i, val: tLabel });
-                }
+                if(tLabel && tLabel.includes("-") && tLabel.length <= 6) targets.push({ idx: i, val: tLabel });
             }
-            for(let r = 2; r < realData.length; r++) {
-                if(realData[r][4]) outlets.add(realData[r][4]);
-            }
+            for(let r = 2; r < D_REAL.length; r++) { if(D_REAL[r][4]) outlets.add(D_REAL[r][4]); }
 
             const selDate = document.getElementById("date-select");
             const selTarg = document.getElementById("target-date-select");
             const selOutl = document.getElementById("outlet-select");
 
-            if(selDate.options.length === 0) dates.forEach(d => selDate.add(new Option(d.val, d.idx)));
-            if(selTarg.options.length === 0) targets.forEach(t => selTarg.add(new Option(t.val, t.idx)));
-            if(selOutl.options.length === 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
+            if(selDate && selDate.options.length === 0) dates.forEach(d => selDate.add(new Option(d.val, d.idx)));
+            if(selTarg && selTarg.options.length === 0) targets.forEach(t => selTarg.add(new Option(t.val, t.idx)));
+            if(selOutl && selOutl.options.length === 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
+
+            renderStandardDashboard();
         }
 
-        function generateKPICards(productList) {
-            const container = document.getElementById("kpi-container");
-            container.innerHTML = ""; 
-            
-            productList.forEach((prod, i) => {
-                const safeId = "card-" + i;
-                const html = `
-                    <div class="kpi-card" id="${safeId}">
-                        <div class="kpi-header">${prod.toUpperCase()}</div>
-                        <h2 class="kpi-main-val" id="val-${safeId}">0,00 M</h2>
-                        <div class="kpi-sub-val">
-                            <span id="tfy-${safeId}">T_FY: 0,00 M</span>
-                            <span id="tprops-${safeId}">T_Props: 0,00 M</span>
-                        </div>
-                        <div class="kpi-badge" id="badge-${safeId}">0,00% ACV</div>
-                        <div class="kpi-detail-grid">
-                            <div class="detail-row"><span>GAP Prop</span><span id="gapprop-${safeId}">0,00 M</span></div>
-                            <div class="detail-row"><span>GAP FY</span><span id="gapfy-${safeId}">0,00 M</span></div>
-                            <div class="detail-row"><span>31 Des 2025</span><span id="des25-${safeId}">0,00 M</span></div>
-                            <div class="detail-row"><span>GAP Reborn</span><span id="gapreborn-${safeId}">0,00 M</span></div>
-                        </div>
-                    </div>`;
-                container.innerHTML += html;
-            });
-        }
-
-        function formatM(num) { return Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M'; }
-        function formatGap(num) { return (num < 0 ? "-" : "+") + formatM(num); }
-
-        function getTargetVal(dataTarget, produk, outlet, colIdx) {
-            if(!colIdx || colIdx === -1) return 0;
-            let sum = 0;
-            let safeP = String(produk).trim(); let safeO = String(outlet).trim();
-            for(let r = 2; r < dataTarget.length; r++) {
-                if(String(dataTarget[r][0]).trim() === safeP) {
-                    if(safeO !== "ALL" && String(dataTarget[r][4]).trim() === safeO) return parseFloat(dataTarget[r][colIdx]) || 0;
-                    else if(safeO === "ALL") sum += (parseFloat(dataTarget[r][colIdx]) || 0);
-                }
-            }
-            return sum;
-        }
-
-        function renderData() {
-            if(!RAW) return;
-            
+        function renderStandardDashboard() {
             let D_REAL = CURRENT_MENU === "DPK" ? RAW.realisasi : (CURRENT_MENU === "KONSUMER" ? RAW.realisasi_kons : RAW.realisasi_prod);
             let D_TARG = CURRENT_MENU === "DPK" ? RAW.target : (CURRENT_MENU === "KONSUMER" ? RAW.target_kons : RAW.target_prod);
-            
             if(!D_REAL || !D_TARG) return;
 
-            setupFilters(D_REAL, D_TARG);
             generateKPICards(CONFIG[CURRENT_MENU].products);
 
             const sOutlet = document.getElementById("outlet-select").value;
@@ -425,13 +563,10 @@
 
                 let valEl = document.getElementById(`val-${cId}`);
                 if(valEl) valEl.innerText = formatM(rM);
-                
                 let tfyEl = document.getElementById(`tfy-${cId}`);
                 if(tfyEl) tfyEl.innerText = "T_FY: " + formatM(fM);
-                
                 let tpropsEl = document.getElementById(`tprops-${cId}`);
                 if(tpropsEl) tpropsEl.innerText = "T_Props: " + formatM(tM);
-                
                 let des25El = document.getElementById(`des25-${cId}`);
                 if(des25El) des25El.innerText = formatM(dM);
                 
@@ -466,6 +601,394 @@
                 },
                 options: { responsive: true, maintainAspectRatio: false }
             });
+        }
+
+        // --- RENDER PERFORMANCE SALES DASHBOARD ---
+        function renderPerformanceFiltersAndDashboard() {
+            let perfData = RAW.performance;
+            if(!perfData || perfData.length < 2) return;
+
+            let outlets = new Set();
+            let typeSales = new Set();
+            let periods = [];
+            let addedMonths = new Set();
+
+            for(let r = 1; r < perfData.length; r++) {
+                let row = perfData[r];
+                if(row[0]) typeSales.add(String(row[0]).trim());
+                if(row[2]) outlets.add(String(row[2]).trim());
+            }
+
+            let headerRow = perfData[0];
+            for(let c = 3; c < headerRow.length; c++) {
+                let rawCol = headerRow[c];
+                if(rawCol) {
+                    let formattedMonth = formatTargetHeader(rawCol);
+                    if(formattedMonth && formattedMonth.includes("-") && !formattedMonth.toUpperCase().includes("AVG")) {
+                        if(!addedMonths.has(formattedMonth)) {
+                            addedMonths.add(formattedMonth);
+                            periods.push({ idx: c, val: formattedMonth });
+                        }
+                    }
+                }
+            }
+
+            const selOutl = document.getElementById("perf-outlet");
+            const selType = document.getElementById("perf-typesales");
+            const selPeriod = document.getElementById("perf-period");
+
+            if(selOutl && selOutl.options.length === 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
+            if(selType && selType.options.length === 1) Array.from(typeSales).sort().forEach(t => selType.add(new Option(t, t)));
+            
+            if(selPeriod && selPeriod.options.length === 1) {
+                periods.forEach(p => selPeriod.add(new Option(p.val, p.idx)));
+            }
+
+            renderPerformanceDashboard();
+        }
+
+        function parsePercentage(rawVal) {
+            if(rawVal === "NS" || rawVal === "" || rawVal === undefined || rawVal === null) return "NS";
+            if(typeof rawVal === "number") {
+                return rawVal * 100;
+            }
+            if(typeof rawVal === "string") {
+                let clean = rawVal.replace('%', '').replace(',', '.').trim();
+                let num = parseFloat(clean);
+                return isNaN(num) ? "NS" : num;
+            }
+            return "NS";
+        }
+
+        function renderPerformanceDashboard() {
+            let perfData = RAW.performance;
+            if(!perfData || perfData.length < 2) return;
+
+            const fOutlet = document.getElementById("perf-outlet").value;
+            const fType = document.getElementById("perf-typesales").value;
+            const fPeriodVal = document.getElementById("perf-period").value;
+
+            let salesRows = [];
+            let headerRow = perfData[0];
+
+            let monthCols = [];
+            let processedMonths = new Set();
+            for(let c = 3; c < headerRow.length; c++) {
+                let formattedMonth = formatTargetHeader(headerRow[c]);
+                if(formattedMonth && formattedMonth.includes("-") && !formattedMonth.toUpperCase().includes("AVG")) {
+                    if(!processedMonths.has(formattedMonth)) {
+                        processedMonths.add(formattedMonth);
+                        monthCols.push({ idx: c, name: formattedMonth });
+                    }
+                }
+            }
+
+            for(let r = 1; r < perfData.length; r++) {
+                let row = perfData[r];
+                let tSales = String(row[0]).trim();
+                let namaSales = String(row[1]).trim();
+                let outlet = String(row[2]).trim();
+
+                if(!namaSales) continue;
+                if(fOutlet !== "ALL" && outlet !== fOutlet) continue;
+                if(fType !== "ALL" && tSales !== fType) continue;
+
+                let monthScores = {};
+                let validScores = [];
+
+                monthCols.forEach(m => {
+                    let val = parsePercentage(row[m.idx]);
+                    monthScores[m.name] = val;
+                    if(typeof val === "number") validScores.push(val);
+                });
+
+                let avgScore = validScores.length > 0 ? validScores.reduce((a, b) => a + b, 0) / validScores.length : 0;
+
+                let evaluatedScore = avgScore;
+                if(fPeriodVal !== "ALL") {
+                    let selectedMonthName = "";
+                    monthCols.forEach(m => { if(m.idx == fPeriodVal) selectedMonthName = m.name; });
+                    let sVal = monthScores[selectedMonthName];
+                    evaluatedScore = typeof sVal === "number" ? sVal : 0;
+                }
+
+                salesRows.push({
+                    name: namaSales,
+                    type: tSales,
+                    outlet: outlet,
+                    months: monthScores,
+                    avg: avgScore,
+                    sortScore: evaluatedScore
+                });
+            }
+
+            if(tableSortCol !== null) {
+                salesRows.sort((a, b) => {
+                    let valA, valB;
+                    if(tableSortCol === 'name') { valA = a.name; valB = b.name; }
+                    else if(tableSortCol === 'type') { valA = a.type; valB = b.type; }
+                    else if(tableSortCol === 'outlet') { valA = a.outlet; valB = b.outlet; }
+                    else if(tableSortCol === 'avg') { valA = a.avg; valB = b.avg; }
+                    else {
+                        valA = a.months[tableSortCol] === "NS" ? -999 : a.months[tableSortCol];
+                        valB = b.months[tableSortCol] === "NS" ? -999 : b.months[tableSortCol];
+                    }
+                    if(valA < valB) return tableSortAsc ? -1 : 1;
+                    if(valA > valB) return tableSortAsc ? 1 : -1;
+                    return 0;
+                });
+            } else {
+                salesRows.sort((a, b) => b.sortScore - a.sortScore);
+            }
+
+            let totalMonitored = salesRows.length;
+            let sumScore = salesRows.reduce((acc, curr) => acc + curr.avg, 0);
+            let avgScoreAll = totalMonitored > 0 ? sumScore / totalMonitored : 0;
+
+            let highest = { name: "-", score: -9999 };
+            let lowest = { name: "-", score: 99999 };
+            let capaiTarget = 0;
+            let belumCapai = 0;
+            let countGreen = 0, countYellow = 0, countRed = 0;
+
+            salesRows.forEach(s => {
+                let sc = fPeriodVal === "ALL" ? s.avg : s.sortScore;
+                if(sc > highest.score) highest = { name: s.name, score: sc };
+                if(sc < lowest.score) lowest = { name: s.name, score: sc };
+                if(s.avg >= 100) capaiTarget++;
+                else belumCapai++;
+
+                if(s.avg > 100) countGreen++;
+                else if(s.avg >= 90 && s.avg <= 100) countYellow++;
+                else countRed++;
+            });
+
+            if(totalMonitored === 0) { highest.name = "-"; lowest.name = "-"; }
+
+            // Render Top KPI Cards
+            const container = document.getElementById("perf-kpi-container");
+            container.innerHTML = `
+                <div class="kpi-card" style="border-left-color: var(--primary-blue);">
+                    <div class="kpi-header">TOTAL SALES DIMONITOR</div>
+                    <h2 class="kpi-main-val">${totalMonitored}</h2>
+                    <div style="font-size:12px; color: var(--text-muted);">sales aktif (data tersedia)</div>
+                </div>
+
+                <div class="kpi-card" style="border-left-color: ${avgScoreAll >= 100 ? 'var(--success-green)' : 'var(--danger-red)'};">
+                    <div class="kpi-header">AVERAGE KPI SALES</div>
+                    <h2 class="kpi-main-val">${avgScoreAll.toFixed(1).replace('.', ',')}%</h2>
+                    <div style="font-size:12px; color: var(--text-muted);">${avgScoreAll >= 100 ? 'Di atas target' : 'Di bawah target (Merah)'}</div>
+                </div>
+
+                <div class="kpi-card" style="border-left-color: var(--success-green);">
+                    <div class="kpi-header">KPI TERTINGGI</div>
+                    <h2 class="kpi-main-val" style="font-size: 24px;">${highest.score > -9999 ? highest.score.toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%' : '-'}</h2>
+                    <div style="font-size:12px; font-weight:700; color: var(--text-main);">${highest.name}</div>
+                </div>
+
+                <div class="kpi-card" style="border-left-color: var(--danger-red);">
+                    <div class="kpi-header">KPI TERENDAH</div>
+                    <h2 class="kpi-main-val" style="font-size: 24px;">${lowest.score < 99999 ? lowest.score.toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%' : '-'}</h2>
+                    <div style="font-size:12px; font-weight:700; color: var(--text-main);">${lowest.name}</div>
+                </div>
+
+                <div class="kpi-card" style="border-left-color: var(--success-green);">
+                    <div class="kpi-header">MENCAPAI TARGET KPI</div>
+                    <h2 class="kpi-main-val">${capaiTarget}</h2>
+                    <div style="font-size:12px; color: var(--text-muted);">≥ 100%</div>
+                </div>
+
+                <div class="kpi-card" style="border-left-color: var(--danger-red);">
+                    <div class="kpi-header">BELUM CAPAI TARGET</div>
+                    <h2 class="kpi-main-val">${belumCapai}</h2>
+                    <div style="font-size:12px; color: var(--text-muted);">&lt; 100%</div>
+                </div>
+            `;
+
+            // Update Gauge & Distribution Charts
+            document.getElementById("gauge-val-text").innerText = avgScoreAll.toFixed(1).replace('.', ',') + "%";
+            let badgeEl = document.getElementById("gauge-status-badge");
+            if(avgScoreAll >= 100) {
+                badgeEl.className = "status-badge green";
+                badgeEl.innerText = "Di atas target (Hijau)";
+            } else {
+                badgeEl.className = "status-badge red";
+                badgeEl.innerText = "Di bawah target (Merah)";
+            }
+
+            let gaugeColor = avgScoreAll >= 100 ? '#10b981' : '#ef4444';
+            let remainderVal = Math.max(0, 200 - avgScoreAll);
+            let filledVal = Math.min(200, avgScoreAll);
+
+            if(gaugeChart) gaugeChart.destroy();
+            gaugeChart = new Chart(document.getElementById('gaugeChart').getContext('2d'), {
+                type: 'doughnut',
+                data: { datasets: [{ data: [filledVal, remainderVal], backgroundColor: [gaugeColor, '#e2e8f0'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: false, circumference: 180, rotation: 270, cutout: '75%', plugins: { tooltip: { enabled: false }, legend: { display: false } } }
+            });
+
+            if(distributionChart) distributionChart.destroy();
+            distributionChart = new Chart(document.getElementById('distributionChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['> 100%', '90–100%', '< 90%'],
+                    datasets: [{ data: [countGreen, countYellow, countRed], backgroundColor: ['#10b981', '#f59e0b', '#ef4444'], borderWidth: 0 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } } } } }
+            });
+
+            // --- RENDER TOP 10 & BOTTOM 10 LEADERBOARD ---
+            let sortedDesc = [...salesListForLeaderboard(salesRows)].sort((a, b) => b.sortScore - a.sortScore);
+            let sortedAsc = [...salesListForLeaderboard(salesRows)].sort((a, b) => a.sortScore - b.sortScore);
+
+            let top10 = sortedDesc.slice(0, 10);
+            let bot10 = sortedAsc.slice(0, 10);
+
+            const top10Container = document.getElementById("top10-list");
+            const bot10Container = document.getElementById("bot10-list");
+
+            top10Container.innerHTML = "";
+            bot10Container.innerHTML = "";
+
+            top10.forEach((s, idx) => {
+                let rankClass = idx === 0 ? "rank-1" : (idx === 1 ? "rank-2" : (idx === 2 ? "rank-3" : "rank-other"));
+                let rankIcon = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : (idx + 1)));
+                let scoreFormatted = s.sortScore.toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + "%";
+
+                top10Container.innerHTML += `
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-info">
+                            <div class="rank-badge ${rankClass}">${rankIcon}</div>
+                            <div>
+                                <div class="sales-name">${s.name}</div>
+                                <div class="sales-meta">${s.outlet} • ${s.type}</div>
+                            </div>
+                        </div>
+                        <div class="sales-score score-green">${scoreFormatted}</div>
+                    </div>
+                `;
+            });
+
+            bot10.forEach((s, idx) => {
+                let rankClass = "rank-other";
+                let scoreFormatted = s.sortScore.toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + "%";
+
+                bot10Container.innerHTML += `
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-info">
+                            <div class="rank-badge ${rankClass}">${idx + 1}</div>
+                            <div>
+                                <div class="sales-name">${s.name}</div>
+                                <div class="sales-meta">${s.outlet} • ${s.type}</div>
+                            </div>
+                        </div>
+                        <div class="sales-score score-red">${scoreFormatted}</div>
+                    </div>
+                `;
+            });
+
+            // --- RENDER DETAILED KPI TABLE (WITHOUT KELOLAAN) ---
+            const tHead = document.getElementById("kpi-table-head");
+            const tBody = document.getElementById("kpi-table-body");
+
+            let headHtml = `<tr>
+                <th onclick="sortTable('#')">#</th>
+                <th onclick="sortTable('name')">NAMA SALES ↕</th>
+                <th onclick="sortTable('type')">TYPE ↕</th>
+                <th onclick="sortTable('outlet')">OUTLET ↕</th>`;
+            
+            monthCols.forEach(m => {
+                headHtml += `<th onclick="sortTable('${m.name}')">${m.name} ↕</th>`;
+            });
+            headHtml += `<th onclick="sortTable('avg')">AVERAGE ↕</th></tr>`;
+            tHead.innerHTML = headHtml;
+
+            tBody.innerHTML = "";
+            salesRows.forEach((s, i) => {
+                let rowHtml = `<tr>
+                    <td><b>${i + 1}</b></td>
+                    <td><b>${s.name}</b></td>
+                    <td>${s.type}</td>
+                    <td>${s.outlet}</td>`;
+
+                monthCols.forEach(m => {
+                    let val = s.months[m.name];
+                    if(val === "NS") {
+                        rowHtml += `<td><span class="badge-cell ns">NS</span></td>`;
+                    } else {
+                        let cls = val >= 100 ? "green" : "red";
+                        let formattedVal = val.toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + "%";
+                        rowHtml += `<td><span class="badge-cell ${cls}">${formattedVal}</span></td>`;
+                    }
+                });
+
+                let avgCls = s.avg >= 100 ? "green" : "red";
+                let avgFormatted = s.avg.toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + "%";
+                rowHtml += `<td><span class="badge-cell ${avgCls}">${avgFormatted}</span></td></tr>`;
+
+                tBody.innerHTML += rowHtml;
+            });
+        }
+
+        function salesListForLeaderboard(salesRows) {
+            const fPeriodVal = document.getElementById("perf-period").value;
+            return salesRows.map(s => ({
+                name: s.name,
+                outlet: s.outlet,
+                type: s.type,
+                sortScore: fPeriodVal === "ALL" ? s.avg : s.sortScore
+            }));
+        }
+
+        function sortTable(col) {
+            if(tableSortCol === col) {
+                tableSortAsc = !tableSortAsc;
+            } else {
+                tableSortCol = col;
+                tableSortAsc = true;
+            }
+            renderPerformanceDashboard();
+        }
+
+        function generateKPICards(productList) {
+            const container = document.getElementById("kpi-container");
+            container.innerHTML = ""; 
+            productList.forEach((prod, i) => {
+                const safeId = "card-" + i;
+                const html = `
+                    <div class="kpi-card" id="${safeId}">
+                        <div class="kpi-header">${prod.toUpperCase()}</div>
+                        <h2 class="kpi-main-val" id="val-${safeId}">0,00 M</h2>
+                        <div class="kpi-sub-val">
+                            <span id="tfy-${safeId}">T_FY: 0,00 M</span>
+                            <span id="tprops-${safeId}">T_Props: 0,00 M</span>
+                        </div>
+                        <div class="kpi-badge" id="badge-${safeId}">0,00% ACV</div>
+                        <div class="kpi-detail-grid">
+                            <div class="detail-row"><span>GAP Prop</span><span id="gapprop-${safeId}">0,00 M</span></div>
+                            <div class="detail-row"><span>GAP FY</span><span id="gapfy-${safeId}">0,00 M</span></div>
+                            <div class="detail-row"><span>31 Des 2025</span><span id="des25-${safeId}">0,00 M</span></div>
+                            <div class="detail-row"><span>GAP Reborn</span><span id="gapreborn-${safeId}">0,00 M</span></div>
+                        </div>
+                    </div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        function formatM(num) { return Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M'; }
+        function formatGap(num) { return (num < 0 ? "-" : "+") + formatM(num); }
+
+        function getTargetVal(dataTarget, produk, outlet, colIdx) {
+            if(!colIdx || colIdx === -1) return 0;
+            let sum = 0;
+            let safeP = String(produk).trim(); let safeO = String(outlet).trim();
+            for(let r = 2; r < dataTarget.length; r++) {
+                if(String(dataTarget[r][0]).trim() === safeP) {
+                    if(safeO !== "ALL" && String(dataTarget[r][4]).trim() === safeO) return parseFloat(dataTarget[r][colIdx]) || 0;
+                    else if(safeO === "ALL") sum += (parseFloat(dataTarget[r][colIdx]) || 0);
+                }
+            }
+            return sum;
         }
     </script>
 </body>
