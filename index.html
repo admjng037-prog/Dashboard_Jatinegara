@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Bisnis Cabang</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-sidebar: #0f172a; --bg-sidebar-hover: #1e293b; --text-sidebar: #94a3b8; --text-sidebar-active: #ffffff;
+            --bg-body: #f1f5f9; --bg-card: #ffffff; --text-main: #334155; --text-muted: #64748b; --border-color: #e2e8f0;
+            --primary-blue: #0ea5e9; --success-green: #10b981; --danger-red: #ef4444; --neutral-bg: #f8fafc;
+        }
+
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg-body); color: var(--text-main); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+
+        /* --- LOGIN MODAL STYLE --- */
+        #login-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(15, 23, 42, 0.85); display: flex; justify-content: center; align-items: center; z-index: 9999;
+        }
+        .login-card {
+            background: white; padding: 30px; border-radius: 12px; width: 350px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px;
+        }
+        .login-card h2 { margin: 0 0 10px 0; font-size: 20px; color: var(--bg-sidebar); text-align: center; }
+        .login-group { display: flex; flex-direction: column; gap: 5px; }
+        .login-group label { font-size: 11px; font-weight: 700; color: var(--primary-blue); text-transform: uppercase; }
+        .login-group input { padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; outline: none; }
+        .login-group input:focus { border-color: var(--primary-blue); }
+        .login-btn { background-color: var(--primary-blue); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .login-btn:hover { background-color: #0284c7; }
+        .login-error { color: var(--danger-red); font-size: 12px; text-align: center; display: none; }
+
+        /* --- SIDEBAR & LAYOUT --- */
+        .sidebar { width: 260px; background-color: #0f172a; display: flex; flex-direction: column; overflow-y: auto; border-right: 1px solid #1e293b; }
+        .sidebar-header { padding: 20px; font-size: 18px; font-weight: 800; color: white; border-bottom: 1px solid #1e293b; letter-spacing: 1px; }
+        .menu-category { padding: 20px 20px 5px 20px; font-size: 11px; font-weight: 700; color: var(--text-sidebar); text-transform: uppercase; letter-spacing: 0.5px; }
+        .menu-list { list-style: none; padding: 0; margin: 0; }
+        .menu-item { padding: 12px 20px; color: var(--text-sidebar); font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; gap: 12px; }
+        .menu-item:hover { background-color: var(--bg-sidebar-hover); color: var(--text-sidebar-active); }
+        .menu-item.active { background-color: var(--primary-blue); color: white; font-weight: 600; border-left: 4px solid white; }
+        .icon { font-size: 16px; opacity: 0.8; }
+
+        .main-content { flex: 1; padding: 25px; overflow-y: auto; background-color: var(--bg-body); }
+        .page-title { font-size: 22px; font-weight: 800; color: var(--text-main); margin: 0 0 20px 0; }
+
+        .filter-container { display: flex; justify-content: flex-start; gap: 20px; align-items: flex-end; background-color: var(--bg-card); padding: 15px 25px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 25px; flex-wrap: wrap; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label { font-size: 11px; font-weight: 700; color: var(--primary-blue); text-transform: uppercase; }
+        .filter-group select { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; color: var(--text-main); min-width: 200px; cursor: pointer; }
+        
+        /* Tombol Refresh */
+        .refresh-btn { background-color: var(--success-green); color: white; border: none; padding: 9px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; font-size: 13px; height: 38px; }
+        .refresh-btn:hover { background-color: #059669; }
+
+        .loading-text { font-size: 14px; font-weight: 700; color: var(--primary-blue); margin-left: auto; align-self: center; }
+
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .kpi-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-left: 4px solid var(--border-color); display: flex; flex-direction: column; gap: 15px; }
+        .kpi-header { font-size: 13px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .kpi-main-val { font-size: 28px; font-weight: 800; margin: 0; color: var(--text-main); }
+        .kpi-sub-val { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+        .kpi-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; text-align: center; background-color: var(--neutral-bg); color: var(--text-muted); }
+        .kpi-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 11px; }
+        .detail-row { display: flex; justify-content: space-between; align-items: center; }
+        .text-green { color: var(--success-green); font-weight:700; }
+        .text-red { color: var(--danger-red); font-weight:700; }
+
+        .chart-card { background-color: var(--bg-card); border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 25px; }
+        .chart-header { font-size: 15px; font-weight: 700; margin-bottom: 15px; }
+        .chart-container { position: relative; height: 350px; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <!-- KOTAK MODAL LOGIN -->
+    <div id="login-overlay">
+        <div class="login-card">
+            <h2>LOGIN DASHBOARD</h2>
+            <div class="login-group">
+                <label>Username</label>
+                <input type="text" id="login-user" placeholder="Masukkan username...">
+            </div>
+            <div class="login-group">
+                <label>Password</label>
+                <input type="password" id="login-pass" placeholder="Masukkan password..." onkeypress="checkEnter(event)">
+            </div>
+            <div id="login-error" class="login-error">Username atau Password salah!</div>
+            <button class="login-btn" onclick="processLogin()">MASUK</button>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-header">DASHBOARD BISNIS</div>
+        
+        <div class="menu-category">Dana & Kredit</div>
+        <ul class="menu-list">
+            <li class="menu-item active" onclick="switchMenu('DPK', this)">
+                <span class="icon">📊</span> Dashboard DPK
+            </li>
+            <li class="menu-item" onclick="switchMenu('KONSUMER', this)">
+                <span class="icon">💳</span> Dashboard Konsumer
+            </li>
+            <li class="menu-item" onclick="switchMenu('PRODUKTIF', this)">
+                <span class="icon">🏭</span> Dashboard Produktif
+            </li>
+        </ul>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main-content">
+        <h1 class="page-title" id="page-title">Dashboard DPK Cabang</h1>
+
+        <div class="filter-container">
+            <div class="filter-group">
+                <label>OUTLET</label>
+                <select id="outlet-select" onchange="renderData()"><option value="ALL">Semua Cabang</option></select>
+            </div>
+            <div class="filter-group">
+                <label>PILIH REALISASI TANGGAL</label>
+                <select id="date-select" onchange="renderData()"></select>
+            </div>
+            <div class="filter-group">
+                <label>PILIH TARGET BULAN</label>
+                <select id="target-date-select" onchange="renderData()"></select>
+            </div>
+            <!-- Tombol Refresh Data di Sebelah Dropdown Target Bulan -->
+            <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
+            
+            <div id="loading-indicator" class="loading-text">🔄 Mengambil Data...</div>
+        </div>
+
+        <div class="kpi-grid" id="kpi-container"></div>
+
+        <div class="chart-card">
+            <div class="chart-header">Pencapaian Target Propotional per Produk</div>
+            <div class="chart-container"><canvas id="mainChart"></canvas></div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbxNGG5xm0zjOtL8Jzoa_Xomjp3ruZbodwR815LvJZZ1Hm7El8SkB0yj8sGCmx29S7Y/exec";
+
+        let RAW = null; 
+        let CURRENT_MENU = "DPK"; 
+        let activeChart = null;
+        let inactivityTimer = null;
+
+        const CONFIG = {
+            "DPK": {
+                title: "Dashboard DPK Cabang",
+                products: ["Total DPK", "Tabungan All", "Tabungan exc. WEM Private", "Tabungan WEM Private", "Giro", "Deposito"],
+                chartLabels: ["DEPOSITO", "GIRO", "TABUNGAN ALL", "TABUNGAN WEM", "TABUNGAN EXC WEM"]
+            },
+            "KONSUMER": {
+                title: "Dashboard Kredit Konsumer",
+                products: ["Total Konsumer", "Fleksi", "Griya", "Instan"],
+                chartLabels: ["FLEKSI", "GRIYA", "INSTAN"]
+            },
+            "PRODUKTIF": {
+                title: "Dashboard Kredit Produktif",
+                products: ["Total Produktif", "KUR", "BWU", "BCM"],
+                chartLabels: ["KUR", "BWU", "BCM"]
+            }
+        };
+
+        // --- SISTEM LOGIN & AUTO LOGOUT 15 MENIT ---
+        function processLogin() {
+            let u = document.getElementById("login-user").value.trim();
+            let p = document.getElementById("login-pass").value.trim();
+            let err = document.getElementById("login-error");
+
+            if(u === "JNG" && p === "JNG037") {
+                document.getElementById("login-overlay").style.display = "none";
+                err.style.display = "none";
+                resetInactivityTimer();
+                if(!RAW) fetchAPI(false); // Ambil data jika belum ada
+            } else {
+                err.style.display = "block";
+            }
+        }
+
+        function checkEnter(e) {
+            if(e.key === "Enter") process(processLogin());
+        }
+
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimer);
+            // 15 menit = 15 * 60 * 1000 milidetik = 900.000 ms
+            inactivityTimer = setTimeout(() => {
+                alert("Sesi Anda telah habis karena tidak aktif selama 15 menit. Silakan login ulang.");
+                location.reload(); // Muat ulang halaman untuk memunculkan modal login lagi
+            }, 15 * 60 * 1000);
+        }
+
+        // Pantau aktivitas mouse atau keyboard untuk mereset timer 15 menit
+        ['click', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(evt => {
+            document.addEventListener(evt, resetInactivityTimer, true);
+        });
+        // ------------------------------------------
+
+        function switchMenu(menuName, el) {
+            if(CURRENT_MENU === menuName) return;
+            CURRENT_MENU = menuName;
+            
+            document.querySelectorAll('.menu-item').forEach(li => li.classList.remove('active'));
+            el.classList.add('active');
+            
+            document.getElementById('page-title').innerText = CONFIG[menuName].title;
+            
+            document.getElementById("date-select").innerHTML = "";
+            document.getElementById("target-date-select").innerHTML = "";
+            document.getElementById("outlet-select").innerHTML = '<option value="ALL">Semua Cabang</option>';
+            
+            renderData();
+        }
+
+        function formatDate(dateStr) {
+            if(!dateStr) return null; let d = new Date(dateStr);
+            return isNaN(d.getTime()) ? String(dateStr) : d.toISOString().split('T')[0];
+        }
+
+        function formatTargetHeader(val) {
+            if(!val) return ""; let d = new Date(val);
+            if(!isNaN(d.getTime())) {
+                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                return months[d.getMonth()] + "-" + String(d.getFullYear()).slice(-2);
+            }
+            return String(val).trim();
+        }
+
+        async function fetchAPI(isManualRefresh = false) {
+            const loadingInd = document.getElementById("loading-indicator");
+            loadingInd.style.display = "block";
+            loadingInd.innerText = "🔄 Mengambil Data...";
+
+            try {
+                const res = await fetch(API_URL);
+                RAW = await res.json();
+                
+                if(RAW.status === "sukses") {
+                    loadingInd.style.display = "none";
+                    renderData();
+                    if(isManualRefresh) alert("Data berhasil diperbarui!");
+                }
+            } catch(e) {
+                loadingInd.innerText = "❌ Gagal mengambil data.";
+            }
+        }
+
+        function setupFilters(realData, targetData) {
+            if(!realData || !targetData) return;
+            
+            let colReal = realData[1];
+            let colTarget = targetData[1];
+            
+            let dates = [], targets = [], outlets = new Set();
+            
+            for(let i = 5; i < colReal.length - 1; i++) {
+                let fDate = formatDate(colReal[i]);
+                if(fDate) dates.push({ idx: i, val: fDate });
+            }
+            for(let i = 2; i < colTarget.length; i++) {
+                let tLabel = formatTargetHeader(colTarget[i]);
+                if(tLabel && tLabel.includes("-") && tLabel.length <= 6) {
+                    targets.push({ idx: i, val: tLabel });
+                }
+            }
+            for(let r = 2; r < realData.length; r++) {
+                if(realData[r][4]) outlets.add(realData[r][4]);
+            }
+
+            const selDate = document.getElementById("date-select");
+            const selTarg = document.getElementById("target-date-select");
+            const selOutl = document.getElementById("outlet-select");
+
+            if(selDate.options.length === 0) dates.forEach(d => selDate.add(new Option(d.val, d.idx)));
+            if(selTarg.options.length === 0) targets.forEach(t => selTarg.add(new Option(t.val, t.idx)));
+            if(selOutl.options.length === 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
+        }
+
+        function generateKPICards(productList) {
+            const container = document.getElementById("kpi-container");
+            container.innerHTML = ""; 
+            
+            productList.forEach((prod, i) => {
+                const safeId = "card-" + i;
+                const html = `
+                    <div class="kpi-card" id="${safeId}">
+                        <div class="kpi-header">${prod.toUpperCase()}</div>
+                        <h2 class="kpi-main-val" id="val-${safeId}">0,00 M</h2>
+                        <div class="kpi-sub-val">
+                            <span id="tfy-${safeId}">T_FY: 0,00 M</span>
+                            <span id="tprops-${safeId}">T_Props: 0,00 M</span>
+                        </div>
+                        <div class="kpi-badge" id="badge-${safeId}">0,00% ACV</div>
+                        <div class="kpi-detail-grid">
+                            <div class="detail-row"><span>GAP Prop</span><span id="gapprop-${safeId}">0,00 M</span></div>
+                            <div class="detail-row"><span>GAP FY</span><span id="gapfy-${safeId}">0,00 M</span></div>
+                            <div class="detail-row"><span>31 Des 2025</span><span id="des25-${safeId}">0,00 M</span></div>
+                            <div class="detail-row"><span>GAP Reborn</span><span id="gapreborn-${safeId}">0,00 M</span></div>
+                        </div>
+                    </div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        function formatM(num) { return Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M'; }
+        function formatGap(num) { return (num < 0 ? "-" : "+") + formatM(num); }
+
+        function getTargetVal(dataTarget, produk, outlet, colIdx) {
+            if(!colIdx || colIdx === -1) return 0;
+            let sum = 0;
+            let safeP = String(produk).trim(); let safeO = String(outlet).trim();
+            for(let r = 2; r < dataTarget.length; r++) {
+                if(String(dataTarget[r][0]).trim() === safeP) {
+                    if(safeO !== "ALL" && String(dataTarget[r][4]).trim() === safeO) return parseFloat(dataTarget[r][colIdx]) || 0;
+                    else if(safeO === "ALL") sum += (parseFloat(dataTarget[r][colIdx]) || 0);
+                }
+            }
+            return sum;
+        }
+
+        function renderData() {
+            if(!RAW) return;
+            
+            let D_REAL = CURRENT_MENU === "DPK" ? RAW.realisasi : (CURRENT_MENU === "KONSUMER" ? RAW.realisasi_kons : RAW.realisasi_prod);
+            let D_TARG = CURRENT_MENU === "DPK" ? RAW.target : (CURRENT_MENU === "KONSUMER" ? RAW.target_kons : RAW.target_prod);
+            
+            if(!D_REAL || !D_TARG) return;
+
+            setupFilters(D_REAL, D_TARG);
+            generateKPICards(CONFIG[CURRENT_MENU].products);
+
+            const sOutlet = document.getElementById("outlet-select").value;
+            const sDateIdx = parseInt(document.getElementById("date-select").value);
+            const sTargIdx = parseInt(document.getElementById("target-date-select").value);
+            const des25Idx = D_REAL[1].length - 1; 
+            
+            let tfyIdx = -1; 
+            for(let i=2; i<D_TARG[1].length; i++) { if(formatTargetHeader(D_TARG[1][i]) === "Dec-26") tfyIdx = i; }
+
+            let arrTfy = [], arrTprop = [], arrDes25 = [], arrReal = [];
+
+            CONFIG[CURRENT_MENU].products.forEach((prodName, idx) => {
+                let sReal = 0, sDes25 = 0, sTprop = 0, sTfy = 0;
+                let isTotalCard = prodName.includes("Total");
+
+                if(isTotalCard) {
+                    let children = CURRENT_MENU === "DPK" ? ["Deposito", "Giro", "Tabungan All"] : 
+                                  (CURRENT_MENU === "KONSUMER" ? ["Fleksi", "Griya", "Instan"] : ["KUR", "BWU", "BCM"]);
+                    
+                    children.forEach(child => {
+                        for(let r = 2; r < D_REAL.length; r++) {
+                            if(String(D_REAL[r][0]).trim() === child && (sOutlet === "ALL" || String(D_REAL[r][4]).trim() === sOutlet)) {
+                                sReal += parseFloat(D_REAL[r][sDateIdx]) || 0;
+                                sDes25 += parseFloat(D_REAL[r][des25Idx]) || 0;
+                            }
+                        }
+                        sTprop += getTargetVal(D_TARG, child, sOutlet, sTargIdx);
+                        sTfy += getTargetVal(D_TARG, child, sOutlet, tfyIdx);
+                    });
+                } else {
+                    for(let r = 2; r < D_REAL.length; r++) {
+                        if(String(D_REAL[r][0]).trim() === prodName && (sOutlet === "ALL" || String(D_REAL[r][4]).trim() === sOutlet)) {
+                            sReal += parseFloat(D_REAL[r][sDateIdx]) || 0;
+                            sDes25 += parseFloat(D_REAL[r][des25Idx]) || 0;
+                        }
+                    }
+                    sTprop = getTargetVal(D_TARG, prodName, sOutlet, sTargIdx);
+                    sTfy = getTargetVal(D_TARG, prodName, sOutlet, tfyIdx);
+                    
+                    if(!isTotalCard) {
+                         arrTfy.push(sTfy / 1e9); arrTprop.push(sTprop / 1e9); arrDes25.push(sDes25 / 1e9); arrReal.push(sReal / 1e9);
+                    }
+                }
+
+                let rM = sReal / 1e9, tM = sTprop / 1e9, fM = sTfy / 1e9, dM = sDes25 / 1e9;
+                let acv = tM > 0 ? (rM/tM)*100 : 0;
+                let cId = "card-" + idx;
+
+                let valEl = document.getElementById(`val-${cId}`);
+                if(valEl) valEl.innerText = formatM(rM);
+                
+                let tfyEl = document.getElementById(`tfy-${cId}`);
+                if(tfyEl) tfyEl.innerText = "T_FY: " + formatM(fM);
+                
+                let tpropsEl = document.getElementById(`tprops-${cId}`);
+                if(tpropsEl) tpropsEl.innerText = "T_Props: " + formatM(tM);
+                
+                let des25El = document.getElementById(`des25-${cId}`);
+                if(des25El) des25El.innerText = formatM(dM);
+                
+                let b = document.getElementById(`badge-${cId}`);
+                if(b) {
+                    b.innerText = acv.toFixed(2).replace('.', ',') + "% ACV";
+                    b.style.backgroundColor = tM===0 ? "#e0e0e0" : (acv>=100 ? "#d1fae5" : "#fee2e2");
+                    b.style.color = tM===0 ? "#777" : (acv>=100 ? "#10b981" : "#ef4444");
+                    if(tM===0) b.innerText = "No Target";
+                }
+
+                let setGap = (id, val) => { 
+                    let el = document.getElementById(id); 
+                    if(el) { el.innerText = formatGap(val); el.className = val >= 0 ? "text-green" : "text-red"; }
+                };
+                setGap(`gapprop-${cId}`, rM - tM);
+                setGap(`gapfy-${cId}`, rM - fM);
+                setGap(`gapreborn-${cId}`, rM - dM);
+            });
+
+            if(activeChart) activeChart.destroy();
+            activeChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: CONFIG[CURRENT_MENU].chartLabels,
+                    datasets: [
+                        { label: 'Target FY', data: arrTfy, backgroundColor: '#1b4d3e' },
+                        { label: 'Target Prop', data: arrTprop, backgroundColor: '#52b788' },
+                        { label: 'Desember 2025', data: arrDes25, backgroundColor: '#e9c46a' },
+                        { label: 'Realisasi', data: arrReal, backgroundColor: '#0b132b' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    </script>
+</body>
+</html>
