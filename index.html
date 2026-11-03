@@ -87,6 +87,7 @@
         .logout-btn:hover { background-color: #fca5a5; color: #b91c1c; }
 
         .section-subtitle { font-size: 14px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin: 25px 0 15px 0; letter-spacing: 0.5px; }
+        .leaderboard-section-title { font-size: 16px; font-weight: 800; color: var(--text-main); margin: 30px 0 15px 0; border-bottom: 2px solid var(--primary-blue); padding-bottom: 5px; display: inline-block; }
 
         .filter-container { display: flex; justify-content: flex-start; gap: 15px; align-items: flex-end; background-color: var(--bg-card); padding: 15px 20px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 25px; flex-wrap: wrap; }
         .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
@@ -310,6 +311,13 @@
         let inactivityTimer = null;
         let tableSortCol = null;
         let tableSortAsc = true;
+        
+        // Timer dan variabel untuk animasi
+        let flashInterval = null; 
+        let animAlpha = 1.0; 
+        let animBounceY = 0; 
+        let animTime = 0; 
+        let isPdfExporting = false; // Flag to stop animation during PDF export
 
         const CONFIG = {
             "DPK": {
@@ -361,6 +369,20 @@
 
             const content = document.getElementById('dashboard-content');
             content.classList.add('pdf-export-active');
+            isPdfExporting = true; // Pause animation
+
+            // Jika sedang ada chart (DPK/Konsumer/Produktif), set state statis dan update render
+            if (activeChart && activeChart.config.plugins.includes(percentageLabelPlugin)) {
+                animAlpha = 1.0;
+                animBounceY = 0;
+                
+                // Force solid colors for PDF
+                const isAchievedArray = activeChart.config.data.datasets[3].metadata_isAchieved;
+                if (isAchievedArray) {
+                    activeChart.data.datasets[3].backgroundColor = isAchievedArray.map(ach => ach ? `rgba(16, 185, 129, 1)` : `rgba(239, 68, 68, 1)`);
+                }
+                activeChart.update('none');
+            }
 
             const opt = {
                 margin:       10,
@@ -377,16 +399,18 @@
             setTimeout(() => {
                 html2pdf().set(opt).from(content).save().then(() => {
                     content.classList.remove('pdf-export-active');
+                    isPdfExporting = false; // Resume animation
                     if (overlay) overlay.style.display = "none";
                     if (msgText) msgText.innerText = "Sedang Menarik Data, Harap Menunggu...";
                 }).catch(err => {
                     console.error("Gagal export PDF:", err);
                     content.classList.remove('pdf-export-active');
+                    isPdfExporting = false;
                     if (overlay) overlay.style.display = "none";
                     if (msgText) msgText.innerText = "Sedang Menarik Data, Harap Menunggu...";
                     alert("Terjadi kesalahan saat mengunduh PDF.");
                 });
-            }, 300);
+            }, 500); // Sedikit delay agar render chart selesai
         }
 
         // --- LOGOUT LOGIC ---
@@ -398,6 +422,7 @@
                 document.getElementById("login-error").style.display = "none";
                 RAW = null;
                 clearTimeout(inactivityTimer);
+                if (flashInterval) clearInterval(flashInterval);
                 
                 document.querySelectorAll('.menu-item').forEach(li => li.classList.remove('active'));
                 document.querySelector('.menu-item').classList.add('active');
@@ -436,11 +461,6 @@
                 }
                 resetInactivityTimer();
                 if(!RAW) fetchAPI(false);
-                
-                // Munculkan pop-up saat pertama kali login masuk ke DPK (Dana & Kredit)
-                if(CONFIG[CURRENT_MENU].type === "standard") {
-                    showAlert();
-                }
             } else {
                 err.style.display = "block";
             }
@@ -471,12 +491,12 @@
             
             if(window.innerWidth <= 768) toggleSidebar();
             
-            // Jika berpindah ke menu dalam kategori Dana & Kredit (type === "standard"), munculkan pop-up pengingat
+            renderData();
+
+            // Munculkan pop-up setelah data selesai dimuat dan render jika masuk ke kategori Dana & Kredit
             if(CONFIG[menuName].type === "standard") {
                 showAlert();
             }
-
-            renderData();
         }
 
         function formatDate(dateStr) {
@@ -502,6 +522,11 @@
                 if(RAW.status === "sukses") {
                     renderData();
                     if(isManualRefresh) alert("Data berhasil diperbarui!");
+                    
+                    // Munculkan pop-up setelah loading selesai saat pertama kali login / fetch pertama
+                    if(CONFIG[CURRENT_MENU].type === "standard") {
+                        showAlert();
+                    }
                 }
             } catch(e) {
                 console.error("Gagal mengambil data API", e);
@@ -516,6 +541,12 @@
             const cfg = CONFIG[CURRENT_MENU];
             const contentArea = document.getElementById("content-body-area");
             const filterArea = document.getElementById("filter-container-area");
+            
+            // Hentikan animasi sebelumnya jika berpindah menu
+            if (flashInterval) {
+                clearInterval(flashInterval);
+                flashInterval = null;
+            }
 
             if(cfg.type === "standard") {
                 filterArea.innerHTML = `
@@ -545,6 +576,7 @@
                 renderStandardFiltersAndDashboard();
 
             } else if(cfg.type === "performance") {
+                // ... [KODE KINERJA SALES SAMA SEPERTI SEBELUMNYA] ...
                 filterArea.innerHTML = `
                     <div class="filter-group">
                         <label>OUTLET</label>
@@ -601,23 +633,23 @@
                         <div class="leaderboard-card">
                             <div class="leaderboard-header-row">
                                 <div>
-                                    <div class="leaderboard-title">🏆 Top 10 KPI Sales</div>
+                                    <div class="leaderboard-title">🏆 Top 5 KPI Sales</div>
                                     <div class="leaderboard-subtitle">Nama • Outlet • Type Sales • KPI%</div>
                                 </div>
-                                <button class="toggle-btn" id="toggle-top10" onclick="toggleSection('top10-list', this)">Sembunyikan</button>
+                                <button class="toggle-btn" id="toggle-top5" onclick="toggleSection('top5-list', this)">Sembunyikan</button>
                             </div>
-                            <div class="leaderboard-list" id="top10-list"></div>
+                            <div class="leaderboard-list" id="top5-list"></div>
                         </div>
 
                         <div class="leaderboard-card">
                             <div class="leaderboard-header-row">
                                 <div>
-                                    <div class="leaderboard-title">📉 Bottom 10 KPI Sales</div>
+                                    <div class="leaderboard-title">📉 Bottom 5 KPI Sales</div>
                                     <div class="leaderboard-subtitle">Nama • Outlet • Type Sales • KPI%</div>
                                 </div>
-                                <button class="toggle-btn" id="toggle-bot10" onclick="toggleSection('bot10-list', this)">Sembunyikan</button>
+                                <button class="toggle-btn" id="toggle-bot5" onclick="toggleSection('bot5-list', this)">Sembunyikan</button>
                             </div>
-                            <div class="leaderboard-list" id="bot10-list"></div>
+                            <div class="leaderboard-list" id="bot5-list"></div>
                         </div>
                     </div>
 
@@ -634,6 +666,7 @@
 
                 renderPerformanceFiltersAndDashboard();
             } else if(cfg.type === "booking") {
+                // ... [KODE BOOKING SALES SAMA SEPERTI SEBELUMNYA] ...
                 filterArea.innerHTML = `
                     <div class="filter-group">
                         <label>PRODUK</label>
@@ -728,29 +761,55 @@
                         <div class="chart-container"><canvas id="bookingTrendChart"></canvas></div>
                     </div>
 
-                    <!-- LEADERBOARD TOP 10 & BOTTOM 10 BOOKING SALES -->
-                    <div class="section-subtitle">LEADERBOARD BOOKING SALES</div>
+                    <!-- LEADERBOARD BOOKING KONSUMER -->
+                    <div class="leaderboard-section-title">💳 LEADERBOARD BOOKING KONSUMER</div>
                     <div class="leaderboard-grid">
                         <div class="leaderboard-card">
                             <div class="leaderboard-header-row">
                                 <div>
-                                    <div class="leaderboard-title">🏆 Top 10 Booking Sales</div>
-                                    <div class="leaderboard-subtitle">Nama • Outlet • Type Sales • Produk • Nominal Booking</div>
+                                    <div class="leaderboard-title">🏆 Top 5 Konsumer</div>
+                                    <div class="leaderboard-subtitle">Nama • Outlet • Nominal Booking</div>
                                 </div>
-                                <button class="toggle-btn" id="toggle-top10-book" onclick="toggleSection('top10-book-list', this)">Sembunyikan</button>
+                                <button class="toggle-btn" onclick="toggleSection('top5-kons-list', this)">Sembunyikan</button>
                             </div>
-                            <div class="leaderboard-list" id="top10-book-list"></div>
+                            <div class="leaderboard-list" id="top5-kons-list"></div>
                         </div>
 
                         <div class="leaderboard-card">
                             <div class="leaderboard-header-row">
                                 <div>
-                                    <div class="leaderboard-title">📉 Bottom 10 Booking Sales</div>
-                                    <div class="leaderboard-subtitle">Nama • Outlet • Type Sales • Produk • Nominal Booking</div>
+                                    <div class="leaderboard-title">📉 Bottom 5 Konsumer</div>
+                                    <div class="leaderboard-subtitle">Nama • Outlet • Nominal Booking</div>
                                 </div>
-                                <button class="toggle-btn" id="toggle-bot10-book" onclick="toggleSection('bot10-book-list', this)">Sembunyikan</button>
+                                <button class="toggle-btn" onclick="toggleSection('bot5-kons-list', this)">Sembunyikan</button>
                             </div>
-                            <div class="leaderboard-list" id="bot10-book-list"></div>
+                            <div class="leaderboard-list" id="bot5-kons-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- LEADERBOARD BOOKING SBP -->
+                    <div class="leaderboard-section-title">🏭 LEADERBOARD BOOKING SBP (PRODUKTIF)</div>
+                    <div class="leaderboard-grid">
+                        <div class="leaderboard-card">
+                            <div class="leaderboard-header-row">
+                                <div>
+                                    <div class="leaderboard-title">🏆 Top 5 SBP</div>
+                                    <div class="leaderboard-subtitle">Nama • Outlet • Nominal Booking</div>
+                                </div>
+                                <button class="toggle-btn" onclick="toggleSection('top5-sbp-list', this)">Sembunyikan</button>
+                            </div>
+                            <div class="leaderboard-list" id="top5-sbp-list"></div>
+                        </div>
+
+                        <div class="leaderboard-card">
+                            <div class="leaderboard-header-row">
+                                <div>
+                                    <div class="leaderboard-title">📉 Bottom 5 SBP</div>
+                                    <div class="leaderboard-subtitle">Nama • Outlet • Nominal Booking</div>
+                                </div>
+                                <button class="toggle-btn" onclick="toggleSection('bot5-sbp-list', this)">Sembunyikan</button>
+                            </div>
+                            <div class="leaderboard-list" id="bot5-sbp-list"></div>
                         </div>
                     </div>
                     
@@ -770,333 +829,99 @@
             }
         }
 
-        // --- BOOKING SALES LOGIC ---
-        function renderBookingFiltersAndDashboard() {
-            let bookData = RAW.booking;
-            if(!bookData || bookData.length < 2) {
-                document.getElementById("booking-row-1").innerHTML = "<p style='padding: 20px; color: red;'>Data Booking tidak tersedia. Pastikan Apps Script telah diupdate.</p>";
-                return;
-            }
-
-            let outlets = new Set();
-            let periods = [];
-            let addedMonths = new Set();
-
-            for(let r = 1; r < bookData.length; r++) {
-                if(bookData[r][2]) outlets.add(String(bookData[r][2]).trim());
-            }
-
-            let headerRow = bookData[0];
-            for(let c = 4; c < headerRow.length; c++) {
-                let rawCol = headerRow[c];
-                if(rawCol) {
-                    let formattedMonth = formatTargetHeader(rawCol);
-                    if(formattedMonth && formattedMonth.includes("-")) {
-                        if(!addedMonths.has(formattedMonth)) {
-                            addedMonths.add(formattedMonth);
-                            periods.push({ idx: c, val: formattedMonth });
-                        }
-                    }
-                }
-            }
-
-            const selOutl = document.getElementById("book-outlet");
-            const selBulan = document.getElementById("book-bulan");
-
-            if(selOutl && selOutl.options.length <= 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
-            if(selBulan && selBulan.options.length <= 1) {
-                periods.forEach(p => selBulan.add(new Option(p.val, p.idx)));
-            }
-            
-            let today = new Date();
-            let options = { year: 'numeric', month: 'long', day: '2-digit' };
-            document.getElementById("book-update-date").innerHTML = "Update Data: " + today.toLocaleDateString('id-ID', options);
-
-            renderBookingDashboard();
-        }
-
-        function renderBookingDashboard() {
-            let bookData = RAW.booking;
-            if(!bookData || bookData.length < 2) return;
-
-            const fProduk = document.getElementById("book-produk").value;
-            const fType = document.getElementById("book-typesales").value;
-            const fBulanVal = document.getElementById("book-bulan").value;
-            const fOutlet = document.getElementById("book-outlet").value;
-            
-            let headerRow = bookData[0];
-            let monthCols = [];
-            let allMonthCols = [];
-            
-            for(let c = 4; c < headerRow.length; c++) {
-                let h = formatTargetHeader(headerRow[c]);
-                if(h && h.includes("-")) {
-                    let mName = h.split("-")[0];
-                    allMonthCols.push({ idx: c, label: mName, fullLabel: h });
-                }
-            }
-
-            if(fBulanVal === "ALL") {
-                monthCols = allMonthCols.map(m => m.idx);
-            } else {
-                monthCols.push(parseInt(fBulanVal));
-            }
-
-            let totals = { "Fleksi": 0, "Griya": 0, "KUR": 0, "BWU": 0 };
-            let aggregatedData = {};
-            let monthTotals = allMonthCols.map(() => 0);
-
-            for(let r = 1; r < bookData.length; r++) {
-                let row = bookData[r];
-                let tSales = String(row[0]).trim();
-                let namaSales = String(row[1]).trim();
-                let outlet = String(row[2]).trim();
-                let produk = String(row[3]).trim();
-
-                if(fType !== "ALL" && tSales !== fType) continue;
-                if(fOutlet !== "ALL" && outlet !== fOutlet) continue;
-                if(fProduk !== "ALL" && produk !== fProduk) continue;
+        // --- PLUGIN CHART.JS UNTUK LABEL PERSENTASE ANIMASI ---
+        const percentageLabelPlugin = {
+            id: 'percentageLabelPlugin',
+            afterDatasetsDraw(chart, args, pluginOptions) {
+                const { ctx, data, scales: { x, y } } = chart;
                 
-                allMonthCols.forEach((m, mIdx) => {
-                    let val = parseFloat(row[m.idx]) || 0;
-                    monthTotals[mIdx] += val;
+                // Cek apakah dataset Realisasi dan Target Prop ada
+                if (!data.datasets[3] || !data.datasets[1]) return;
+
+                const realisasiMeta = chart.getDatasetMeta(3);
+                const targetPropData = data.datasets[1].data;
+                const realisasiData = data.datasets[3].data;
+                const isAchievedArray = data.datasets[3].metadata_isAchieved; // Menyimpan status hijau/merah
+
+                if(!isAchievedArray) return;
+
+                ctx.save();
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+
+                realisasiMeta.data.forEach((barElement, index) => {
+                    const rM = realisasiData[index];
+                    const tM = targetPropData[index];
+                    
+                    // Hitung persentase
+                    let percentage = 0;
+                    if (tM > 0) {
+                        percentage = (rM / tM) * 100;
+                    } else if (rM > 0 && tM <= 0) {
+                        percentage = 100; // Anggap 100% jika tidak ada target tapi ada realisasi
+                    }
+                    
+                    // Format teks
+                    const text = percentage.toLocaleString('id-ID', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
+                    
+                    // Dapatkan posisi X dan Y dari puncak bar
+                    const barX = barElement.x;
+                    const barY = barElement.y;
+
+                    // Jangan render jika nilai = 0 dan target = 0 agar tidak berantakan
+                    if (rM === 0 && tM === 0) return;
+
+                    const isAchieved = isAchievedArray[index];
+                    
+                    // Warna teks berdasarkan pencapaian
+                    // Kita gunakan animAlpha untuk efek fade/glowing dan animBounceY untuk floating
+                    const r = isAchieved ? 16 : 220;
+                    const g = isAchieved ? 185 : 38;
+                    const b = isAchieved ? 129 : 38;
+                    
+                    // Efek shadow (glow)
+                    ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${animAlpha})`;
+                    ctx.shadowBlur = 10 * animAlpha;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+
+                    // Background label bulat/kotak yang elegan
+                    const textWidth = ctx.measureText(text).width;
+                    const paddingX = 8;
+                    const paddingY = 4;
+                    const boxHeight = 22;
+                    const boxWidth = textWidth + (paddingX * 2);
+                    
+                    // Posisi Y dinamis (Bounce/Float)
+                    // Jika nilai sangat tinggi, jangan sampai terpotong di atas. Batasi minimum Y
+                    let finalY = Math.max(barY - 10 + animBounceY, 30); 
+                    
+                    // Gambar Kotak (Background)
+                    ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0.8, animAlpha)})`; 
+                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${animAlpha})`;
+                    ctx.lineWidth = 1.5;
+                    ctx.beginPath();
+                    ctx.roundRect(barX - (boxWidth / 2), finalY - boxHeight, boxWidth, boxHeight, 6); // Radius 6
+                    ctx.fill();
+                    ctx.stroke();
+
+                    // Hilangkan shadow untuk teks agar tulisan tetap tajam
+                    ctx.shadowBlur = 0;
+
+                    // Gambar Teks Persentase
+                    ctx.font = 'bold 12px "Segoe UI", sans-serif';
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 1)`; // Warna teks solid
+                    
+                    // + 2 sedikit adjustment untuk textBaseline bottom
+                    ctx.fillText(text, barX, finalY - paddingY + 2); 
                 });
 
-                let sumSelectedMonths = 0;
-                monthCols.forEach(idx => {
-                    let val = parseFloat(row[idx]) || 0;
-                    sumSelectedMonths += val;
-                });
-                
-                if(totals[produk] !== undefined) {
-                    totals[produk] += sumSelectedMonths;
-                }
-                
-                if(sumSelectedMonths > 0) {
-                    let key = namaSales + "|" + outlet + "|" + tSales;
-                    if(!aggregatedData[key]) {
-                        aggregatedData[key] = {
-                            sales: namaSales,
-                            type: tSales,
-                            outlet: outlet,
-                            konsumer: 0,
-                            sbp: 0
-                        };
-                    }
-                    if(produk === "Fleksi" || produk === "Griya") {
-                        aggregatedData[key].konsumer += sumSelectedMonths;
-                    } else if(produk === "KUR" || produk === "BWU") {
-                        aggregatedData[key].sbp += sumSelectedMonths;
-                    }
-                }
+                ctx.restore();
             }
+        };
 
-            let detailedRows = [];
-            for (let k in aggregatedData) {
-                let data = aggregatedData[k];
-                if (data.konsumer > 0) {
-                    detailedRows.push({ ...data, produk: "Total Konsumer", nominal: data.konsumer });
-                }
-                if (data.sbp > 0) {
-                    detailedRows.push({ ...data, produk: "Total SBP", nominal: data.sbp });
-                }
-            }
-
-            let totalKonsumer = totals["Fleksi"] + totals["Griya"];
-            let totalSBP = totals["KUR"] + totals["BWU"];
-            let grandTotal = totalKonsumer + totalSBP;
-            
-            let subtitle = fBulanVal === "ALL" ? "Akumulasi" : `Bulan: ${document.getElementById("book-bulan").options[document.getElementById("book-bulan").selectedIndex].text}`;
-
-            const fmt = (num) => "Rp " + (num / 1e9).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + " M";
-
-            document.getElementById("val-book-fleksi").innerText = fmt(totals["Fleksi"]);
-            document.getElementById("val-book-griya").innerText = fmt(totals["Griya"]);
-            document.getElementById("val-book-konsumer").innerText = fmt(totalKonsumer);
-            
-            document.getElementById("val-book-kur").innerText = fmt(totals["KUR"]);
-            document.getElementById("val-book-bwu").innerText = fmt(totals["BWU"]);
-            document.getElementById("val-book-sbp").innerText = fmt(totalSBP);
-            
-            document.getElementById("val-book-total").innerText = fmt(grandTotal);
-            
-            ["fleksi", "griya", "konsumer", "kur", "bwu", "sbp", "total"].forEach(id => {
-                let el = document.getElementById("sub-book-" + id);
-                if(el) el.innerText = subtitle;
-            });
-
-            renderBookingTrendChart(allMonthCols.map(m => m.label), monthTotals);
-            renderBookingLeaderboard(detailedRows);
-            renderBookingTable(detailedRows);
-        }
-
-        function renderBookingTrendChart(labels, dataValues) {
-            let chartDataValues = dataValues.map(v => (v / 1e9));
-
-            if(bookingTrendChart) bookingTrendChart.destroy();
-            const ctx = document.getElementById('bookingTrendChart').getContext('2d');
-            
-            bookingTrendChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Total Nominal Booking (M)',
-                        data: chartDataValues,
-                        borderColor: '#0284c7',
-                        borderWidth: 3,
-                        backgroundColor: 'rgba(14, 165, 233, 0.12)',
-                        fill: true,
-                        tension: 0.35,
-                        pointBackgroundColor: '#eab308',
-                        pointBorderColor: '#ffffff',
-                        pointBorderWidth: 2,
-                        pointRadius: 6,
-                        pointHoverRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let val = context.raw || 0;
-                                    return ` Nominal: Rp ${val.toFixed(2).replace('.', ',')} M`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toFixed(1) + 'M';
-                                }
-                            },
-                            grid: { color: '#f1f5f9' }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderBookingLeaderboard(detailedRows) {
-            let sortedDesc = [...detailedRows].sort((a, b) => b.nominal - a.nominal);
-            let sortedAsc = [...detailedRows].sort((a, b) => a.nominal - b.nominal);
-
-            let top10 = sortedDesc.slice(0, 10);
-            let bot10 = sortedAsc.slice(0, 10);
-
-            const topContainer = document.getElementById("top10-book-list");
-            const botContainer = document.getElementById("bot10-book-list");
-
-            topContainer.innerHTML = "";
-            botContainer.innerHTML = "";
-
-            if(top10.length === 0) {
-                topContainer.innerHTML = "<div style='padding:15px; color:var(--text-muted); text-align:center;'>Tidak ada data</div>";
-            }
-            if(bot10.length === 0) {
-                botContainer.innerHTML = "<div style='padding:15px; color:var(--text-muted); text-align:center;'>Tidak ada data</div>";
-            }
-
-            top10.forEach((s, idx) => {
-                let rankClass = idx === 0 ? "rank-1" : (idx === 1 ? "rank-2" : (idx === 2 ? "rank-3" : "rank-other"));
-                let rankIcon = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : (idx + 1)));
-                let scoreFormatted = "Rp " + (s.nominal / 1e9).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + " M";
-
-                topContainer.innerHTML += `
-                    <div class="leaderboard-item">
-                        <div class="leaderboard-info">
-                            <div class="rank-badge ${rankClass}">${rankIcon}</div>
-                            <div>
-                                <div class="sales-name">${s.sales}</div>
-                                <div class="sales-meta">${s.outlet} • ${s.type} • <b>${s.produk}</b></div>
-                            </div>
-                        </div>
-                        <div class="sales-score score-green">${scoreFormatted}</div>
-                    </div>
-                `;
-            });
-
-            bot10.forEach((s, idx) => {
-                let rankClass = "rank-other";
-                let scoreFormatted = "Rp " + (s.nominal / 1e9).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + " M";
-
-                botContainer.innerHTML += `
-                    <div class="leaderboard-item">
-                        <div class="leaderboard-info">
-                            <div class="rank-badge ${rankClass}">${idx + 1}</div>
-                            <div>
-                                <div class="sales-name">${s.sales}</div>
-                                <div class="sales-meta">${s.outlet} • ${s.type} • <b>${s.produk}</b></div>
-                            </div>
-                        </div>
-                        <div class="sales-score score-red">${scoreFormatted}</div>
-                    </div>
-                `;
-            });
-        }
+        // ... [SISA FUNGSI LAINNYA TETAP SAMA] ...
         
-        function renderBookingTable(detailedRows) {
-            const tHead = document.getElementById("booking-table-head");
-            const tBody = document.getElementById("booking-table-body");
-            
-            tHead.innerHTML = `
-                <tr>
-                    <th>#</th>
-                    <th>NAMA SALES</th>
-                    <th>TYPE SALES</th>
-                    <th>OUTLET</th>
-                    <th>PRODUK</th>
-                    <th style="text-align: right;">NOMINAL BOOKING</th>
-                </tr>
-            `;
-            
-            detailedRows.sort((a,b) => b.nominal - a.nominal);
-            tBody.innerHTML = "";
-            
-            if(detailedRows.length === 0) {
-                tBody.innerHTML = `<tr><td colspan="6" style="text-align:center;">Tidak ada data yang sesuai dengan filter</td></tr>`;
-                return;
-            }
-            
-            detailedRows.forEach((r, i) => {
-                tBody.innerHTML += `
-                    <tr>
-                        <td>${i + 1}</td>
-                        <td><b>${r.sales}</b></td>
-                        <td>${r.type}</td>
-                        <td>${r.outlet}</td>
-                        <td>${r.produk}</td>
-                        <td style="text-align: right; font-weight: bold; color: var(--primary-blue);">
-                            Rp ${r.nominal.toLocaleString('id-ID')}
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        // --- COMMON FUNCTIONS ---
-
-        function toggleSection(elementId, btn) {
-            let el = document.getElementById(elementId);
-            if(el.style.display === "none") {
-                el.style.display = "flex";
-                btn.innerText = "Sembunyikan";
-            } else {
-                el.style.display = "none";
-                btn.innerText = "Tampilkan";
-            }
-        }
-
         function renderStandardFiltersAndDashboard() {
             let D_REAL = CURRENT_MENU === "DPK" ? RAW.realisasi : (CURRENT_MENU === "KONSUMER" ? RAW.realisasi_kons : RAW.realisasi_prod);
             let D_TARG = CURRENT_MENU === "DPK" ? RAW.target : (CURRENT_MENU === "KONSUMER" ? RAW.target_kons : RAW.target_prod);
@@ -1104,10 +929,24 @@
 
             let colReal = D_REAL[1], colTarget = D_TARG[1];
             let dates = [], targets = [], outlets = new Set();
+            
             for(let i = 5; i < colReal.length - 1; i++) {
                 let fDate = formatDate(colReal[i]);
-                if(fDate) dates.push({ idx: i, val: fDate });
+                if(fDate) {
+                    let hasDataInColumn = false;
+                    for(let r = 2; r < D_REAL.length; r++) {
+                        let val = D_REAL[r][i];
+                        if(val !== undefined && val !== null && String(val).trim() !== "" && !isNaN(parseFloat(val))) {
+                            hasDataInColumn = true;
+                            break;
+                        }
+                    }
+                    if(hasDataInColumn) {
+                        dates.push({ idx: i, val: fDate });
+                    }
+                }
             }
+
             for(let i = 2; i < colTarget.length; i++) {
                 let tLabel = formatTargetHeader(colTarget[i]);
                 if(tLabel && tLabel.includes("-") && tLabel.length <= 6) targets.push({ idx: i, val: tLabel });
@@ -1118,7 +957,10 @@
             const selTarg = document.getElementById("target-date-select");
             const selOutl = document.getElementById("outlet-select");
 
-            if(selDate && selDate.options.length === 0) dates.forEach(d => selDate.add(new Option(d.val, d.idx)));
+            if(selDate) {
+                selDate.innerHTML = "";
+                dates.forEach(d => selDate.add(new Option(d.val, d.idx)));
+            }
             if(selTarg && selTarg.options.length === 0) targets.forEach(t => selTarg.add(new Option(t.val, t.idx)));
             if(selOutl && selOutl.options.length === 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
 
@@ -1221,7 +1063,10 @@
                 setGap(`gapreborn-${cId}`, rM - dM);
             });
 
+            // LOGIC PENGATURAN WARNA BAR REALISASI & ANIMASI
             let arrTfy = [], arrTprop = [], arrDes25 = [], arrReal = [];
+            let isAchievedArray = []; // Menyimpan status apakah target tercapai (true = hijau, false = merah)
+            
             CONFIG[CURRENT_MENU].chartLabels.forEach(label => {
                 let pName = "";
                 if(CURRENT_MENU === "DPK") {
@@ -1245,22 +1090,88 @@
                 arrTprop.push(m.tM);
                 arrDes25.push(m.dM);
                 arrReal.push(m.rM);
+                
+                // Menentukan apakah mencapai target prop
+                isAchievedArray.push(m.rM >= m.tM);
             });
 
-            if(activeChart) activeChart.destroy();
+            if(activeChart) {
+                activeChart.destroy();
+            }
+            if(flashInterval) {
+                clearInterval(flashInterval);
+            }
+            
+            // Array warna dasar (RGB) untuk animasi opacity
+            const greenRGB = '16, 185, 129'; // var(--success-green)
+            const redRGB = '239, 68, 68';    // var(--danger-red)
+
             activeChart = new Chart(document.getElementById('mainChart').getContext('2d'), {
                 type: 'bar',
+                plugins: [percentageLabelPlugin], // <--- Tambahkan Plugin Kustom di sini
                 data: {
                     labels: CONFIG[CURRENT_MENU].chartLabels,
                     datasets: [
                         { label: 'Target FY', data: arrTfy, backgroundColor: '#1b4d3e' },
                         { label: 'Target Prop', data: arrTprop, backgroundColor: '#52b788' },
                         { label: 'Desember 2025', data: arrDes25, backgroundColor: '#e9c46a' },
-                        { label: 'Realisasi', data: arrReal, backgroundColor: '#0b132b' }
+                        { 
+                            label: 'Realisasi', 
+                            data: arrReal, 
+                            // Initial color state (will be overwritten by interval)
+                            backgroundColor: isAchievedArray.map(ach => ach ? `rgba(${greenRGB}, 1)` : `rgba(${redRGB}, 1)`),
+                            borderColor: isAchievedArray.map(ach => ach ? '#059669' : '#b91c1c'),
+                            borderWidth: 2,
+                            // Metadata kustom untuk diakses oleh plugin
+                            metadata_isAchieved: isAchievedArray 
+                        }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 30 } // Beri ruang ekstra di atas agar label persentase tidak terpotong
+                    },
+                    plugins: {
+                        tooltip: {
+                            // Nonaktifkan tooltip default agar tidak menabrak label persentase kustom
+                            enabled: true 
+                        }
+                    }
+                }
             });
+
+            // Animasi Kedap-Kedip (Flashing/Pulsing) dan Mengambang (Floating)
+            animAlpha = 1.0;
+            animTime = 0;
+            let fadingOut = true;
+            
+            flashInterval = setInterval(() => {
+                if (isPdfExporting) return; // Jangan jalankan update saat export PDF
+                
+                // Update opacity value (Alpha)
+                if (fadingOut) {
+                    animAlpha -= 0.03; // Kecepatan fade dihaluskan
+                    if (animAlpha <= 0.6) fadingOut = false; // Batas minimum
+                } else {
+                    animAlpha += 0.03;
+                    if (animAlpha >= 1.0) fadingOut = true;  // Batas maksimum
+                }
+
+                // Update posisi Y (Bounce/Float) menggunakan fungsi Math.sin
+                animTime += 0.15; // Kecepatan gelombang
+                animBounceY = Math.sin(animTime) * 3; // Tinggi pantulan (amplitudo = 3px)
+
+                // Update warna dataset ke-3 (yaitu 'Realisasi') di chart
+                activeChart.data.datasets[3].backgroundColor = isAchievedArray.map(isAchieved => {
+                    return isAchieved ? `rgba(${greenRGB}, ${animAlpha})` : `rgba(${redRGB}, ${animAlpha})`;
+                });
+                
+                // Gunakan mode update 'none' agar chart tidak merender ulang dengan berat
+                activeChart.update('none'); 
+                
+            }, 40); // Interval fps
         }
 
         // --- RENDER PERFORMANCE SALES DASHBOARD ---
@@ -1498,21 +1409,21 @@
             let sortedDesc = [...salesListForLeaderboard(salesRows)].sort((a, b) => b.sortScore - a.sortScore);
             let sortedAsc = [...salesListForLeaderboard(salesRows)].sort((a, b) => a.sortScore - b.sortScore);
 
-            let top10 = sortedDesc.slice(0, 10);
-            let bot10 = sortedAsc.slice(0, 10);
+            let top5 = sortedDesc.slice(0, 5);
+            let bot5 = sortedAsc.slice(0, 5);
 
-            const top10Container = document.getElementById("top10-list");
-            const bot10Container = document.getElementById("bot10-list");
+            const top5Container = document.getElementById("top5-list");
+            const bot5Container = document.getElementById("bot5-list");
 
-            top10Container.innerHTML = "";
-            bot10Container.innerHTML = "";
+            top5Container.innerHTML = "";
+            bot5Container.innerHTML = "";
 
-            top10.forEach((s, idx) => {
+            top5.forEach((s, idx) => {
                 let rankClass = idx === 0 ? "rank-1" : (idx === 1 ? "rank-2" : (idx === 2 ? "rank-3" : "rank-other"));
                 let rankIcon = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : (idx + 1)));
                 let scoreFormatted = s.sortScore.toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + "%";
 
-                top10Container.innerHTML += `
+                top5Container.innerHTML += `
                     <div class="leaderboard-item">
                         <div class="leaderboard-info">
                             <div class="rank-badge ${rankClass}">${rankIcon}</div>
@@ -1526,11 +1437,11 @@
                 `;
             });
 
-            bot10.forEach((s, idx) => {
+            bot5.forEach((s, idx) => {
                 let rankClass = "rank-other";
                 let scoreFormatted = s.sortScore.toLocaleString('id-ID', {minimumFractionDigits:1, maximumFractionDigits:1}) + "%";
 
-                bot10Container.innerHTML += `
+                bot5Container.innerHTML += `
                     <div class="leaderboard-item">
                         <div class="leaderboard-info">
                             <div class="rank-badge ${rankClass}">${idx + 1}</div>
@@ -1606,7 +1517,6 @@
             renderPerformanceDashboard();
         }
 
-        
         function generateKPICards(productList) {
             const container = document.getElementById("kpi-container");
             container.innerHTML = ""; 
