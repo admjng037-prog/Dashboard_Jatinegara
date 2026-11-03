@@ -1563,6 +1563,213 @@
             }
             return sum;
         }
+		function renderBookingFiltersAndDashboard() {
+    let bookData = RAW.booking;
+    if(!bookData || bookData.length < 2) return;
+
+    let products = new Set();
+    let typeSales = new Set();
+    let months = [];
+    let outlets = new Set();
+    let addedMonths = new Set();
+
+    let headerRow = bookData[0]; // Baris header (biasanya baris ke-1 index 0)
+    
+    // Asumsi kolom struktur sheet Booking:
+    // Kolom 0: TIPE SALES, 1: Nama Sales, 2: Outlet, 3: Produk, 4 dst... adalah kolom bulan (Jan-26, Feb-26, dst)
+    for(let c = 4; c < headerRow.length; c++) {
+        let rawCol = headerRow[c];
+        if(rawCol) {
+            let formattedMonth = formatTargetHeader(rawCol);
+            if(formattedMonth && formattedMonth.includes("-")) {
+                if(!addedMonths.has(formattedMonth)) {
+                    addedMonths.add(formattedMonth);
+                    months.push({ idx: c, val: formattedMonth });
+                }
+            }
+        }
+    }
+
+    for(let r = 1; r < bookData.length; r++) {
+        let row = bookData[r];
+        if(row[0]) typeSales.add(String(row[0]).trim());
+        if(row[2]) outlets.add(String(row[2]).trim());
+        if(row[3]) products.add(String(row[3]).trim());
+    }
+
+    const selProd = document.getElementById("book-produk");
+    const selType = document.getElementById("book-typesales");
+    const selBulan = document.getElementById("book-bulan");
+    const selOutl = document.getElementById("book-outlet");
+
+    if(selProd && selProd.options.length === 1) Array.from(products).sort().forEach(p => selProd.add(new Option(p, p)));
+    if(selType && selType.options.length === 1) Array.from(typeSales).sort().forEach(t => selType.add(new Option(t, t)));
+    if(selBulan && selBulan.options.length === 1) months.forEach(m => selBulan.add(new Option(m.val, m.idx)));
+    if(selOutl && selOutl.options.length === 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
+
+    renderBookingDashboard();
+}
+
+function renderBookingDashboard() {
+    let bookData = RAW.booking;
+    if(!bookData || bookData.length < 2) return;
+
+    const fProd = document.getElementById("book-produk").value;
+    const fType = document.getElementById("book-typesales").value;
+    const fBulan = document.getElementById("book-bulan").value;
+    const fOutlet = document.getElementById("book-outlet").value;
+
+    let headerRow = bookData[0];
+    let monthCols = [];
+    let addedM = new Set();
+    for(let c = 4; c < headerRow.length; c++) {
+        let mName = formatTargetHeader(headerRow[c]);
+        if(mName && mName.includes("-") && !addedM.has(mName)) {
+            addedM.add(mName);
+            monthCols.push({ idx: c, name: mName });
+        }
+    }
+
+    let sumFleksi = 0, sumGriya = 0, sumKur = 0, sumBwu = 0, sumSbp = 0;
+    let salesMap = {}; // Untuk leaderboard & tabel
+
+    for(let r = 1; r < bookData.length; r++) {
+        let row = bookData[r];
+        let tSales = String(row[0]).trim();
+        let namaSales = String(row[1]).trim();
+        let outlet = String(row[2]).trim();
+        let produk = String(row[3]).trim();
+
+        if(!namaSales) continue;
+        if(fProd !== "ALL" && produk !== fProd) continue;
+        if(fType !== "ALL" && tSales !== fType) continue;
+        if(fOutlet !== "ALL" && outlet !== fOutlet) continue;
+
+        let rowTotal = 0;
+        if(fBulan === "ALL") {
+            monthCols.forEach(m => {
+                rowTotal += parseFloat(row[m.idx]) || 0;
+            });
+        } else {
+            rowTotal = parseFloat(row[fBulan]) || 0;
+        }
+
+        // Akumulasi per produk
+        let pUpper = produk.toUpperCase();
+        if(pUpper.includes("FLEKSI")) sumFleksi += rowTotal;
+        if(pUpper.includes("GRIYA")) sumGriya += rowTotal;
+        if(pUpper.includes("KUR")) sumKur += rowTotal;
+        if(pUpper.includes("BWU")) sumBwu += rowTotal;
+        if(pUpper.includes("SBP")) sumSbp += rowTotal;
+
+        // Key unik sales
+        let salesKey = namaSales + "_" + outlet;
+        if(!salesMap[salesKey]) {
+            salesMap[salesKey] = { name: namaSales, outlet: outlet, type: tSales, produk: produk, total: 0 };
+        }
+        salesMap[salesKey].total += rowTotal;
+    }
+
+    let sumKonsumer = sumFleksi + sumGriya;
+    let grandTotal = sumKonsumer + sumKur + sumBwu + sumSbp;
+
+    // Render ke Card HTML
+    document.getElementById("val-book-fleksi").innerText = formatM(sumFleksi / 1e9);
+    document.getElementById("val-book-griya").innerText = formatM(sumGriya / 1e9);
+    document.getElementById("val-book-konsumer").innerText = formatM(sumKonsumer / 1e9);
+    
+    document.getElementById("val-book-kur").innerText = formatM(sumKur / 1e9);
+    document.getElementById("val-book-bwu").innerText = formatM(sumBwu / 1e9);
+    document.getElementById("val-book-sbp").innerText = formatM(sumSbp / 1e9);
+    
+    document.getElementById("val-book-total").innerText = formatM(grandTotal / 1e9);
+
+    // Update Badge Tanggal
+    document.getElementById("book-update-date").innerText = "Update Data: " + new Date().toLocaleDateString('id-ID');
+
+    // Render Leaderboard & Tabel Detail
+    renderBookingLeaderboardsAndTable(salesMap, bookData, headerRow, monthCols);
+}
+
+function renderBookingLeaderboardsAndTable(salesMap, bookData, headerRow, monthCols) {
+    let salesArray = Object.values(salesMap);
+    salesArray.sort((a, b) => b.total - a.total);
+
+    let konsumerList = salesArray.filter(s => s.produk.toUpperCase().includes("FLEKSI") || s.produk.toUpperCase().includes("GRIYA"));
+    let sbpList = salesArray.filter(s => s.produk.toUpperCase().includes("KUR") || s.produk.toUpperCase().includes("BWU") || s.produk.toUpperCase().includes("SBP") || s.produk.toUpperCase().includes("PRODUKTIF"));
+
+    // Render Top/Bot 5 Konsumer
+    let top5Kons = konsumerList.slice(0, 5);
+    let bot5Kons = [...konsumerList].reverse().slice(0, 5);
+    fillLeaderboardList("top5-kons-list", top5Kons);
+    fillLeaderboardList("bot5-kons-list", bot5Kons);
+
+    // Render Top/Bot 5 SBP
+    let top5Sbp = sbpList.slice(0, 5);
+    let bot5Sbp = [...sbpList].reverse().slice(0, 5);
+    fillLeaderboardList("top5-sbp-list", top5Sbp);
+    fillLeaderboardList("bot5-sbp-list", bot5Sbp);
+
+    // Render Tabel Detail Booking
+    const tHead = document.getElementById("booking-table-head");
+    const tBody = document.getElementById("booking-table-body");
+
+    let headHtml = `<tr>
+        <th>#</th>
+        <th>NAMA SALES</th>
+        <th>TYPE</th>
+        <th>OUTLET</th>
+        <th>PRODUK</th>`;
+    monthCols.forEach(m => { headHtml += `<th>${m.name}</th>`; });
+    headHtml += `<th>TOTAL</th></tr>`;
+    tHead.innerHTML = headHtml;
+
+    tBody.innerHTML = "";
+    salesArray.forEach((s, idx) => {
+        let originalRow = bookData.find(row => String(row[1]).trim() === s.name && String(row[2]).trim() === s.outlet);
+        let rowHtml = `<tr>
+            <td><b>${idx + 1}</b></td>
+            <td><b>${s.name}</b></td>
+            <td>${s.type}</td>
+            <td>${s.outlet}</td>
+            <td>${s.produk}</td>`;
+        
+        let rowSum = 0;
+        monthCols.forEach(m => {
+            let val = originalRow ? (parseFloat(originalRow[m.idx]) || 0) : 0;
+            rowSum += val;
+            rowHtml += `<td>${val > 0 ? formatM(val / 1e9) : '-'}</td>`;
+        });
+        rowHtml += `<td><b>${formatM(rowSum / 1e9)}</b></td></tr>`;
+        tBody.innerHTML += rowHtml;
+    });
+}
+
+function fillLeaderboardList(elementId, listData) {
+    const container = document.getElementById(elementId);
+    if(!container) return;
+    container.innerHTML = "";
+    if(listData.length === 0) {
+        container.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">Tidak ada data</div>`;
+        return;
+    }
+    listData.forEach((s, idx) => {
+        let rankClass = idx === 0 ? "rank-1" : (idx === 1 ? "rank-2" : (idx === 2 ? "rank-3" : "rank-other"));
+        let rankIcon = idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : (idx + 1)));
+        container.innerHTML += `
+            <div class="leaderboard-item">
+                <div class="leaderboard-info">
+                    <div class="rank-badge ${rankClass}">${rankIcon}</div>
+                    <div>
+                        <div class="sales-name">${s.name}</div>
+                        <div class="sales-meta">${s.outlet} • ${s.produk}</div>
+                    </div>
+                </div>
+                <div class="sales-score score-green">${formatM(s.total / 1e9)}</div>
+            </div>
+        `;
+    });
+}
     </script>
 </body>
 </html>
