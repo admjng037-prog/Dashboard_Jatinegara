@@ -258,6 +258,17 @@
                 <li class="menu-item active" onclick="switchMenu('DPK', this)">
                     <span class="icon">📊</span> Dashboard DPK
                 </li>
+                
+                <li class="menu-item" style="padding-left: 45px; font-size: 13px;" onclick="switchMenu('DPK_TABUNGAN', this)">
+                    <span class="icon" style="font-size: 11px;">▪</span> Detail Tabungan
+                </li>
+                <li class="menu-item" style="padding-left: 45px; font-size: 13px;" onclick="switchMenu('DPK_GIRO', this)">
+                    <span class="icon" style="font-size: 11px;">▪</span> Detail Giro
+                </li>
+                <li class="menu-item" style="padding-left: 45px; font-size: 13px;" onclick="switchMenu('DPK_DEPOSITO', this)">
+                    <span class="icon" style="font-size: 11px;">▪</span> Detail Deposito
+                </li>
+
                 <li class="menu-item" onclick="switchMenu('KONSUMER', this)">
                     <span class="icon">💳</span> Dashboard Konsumer
                 </li>
@@ -322,6 +333,21 @@
                 chartLabels: ["DEPOSITO", "GIRO", "TABUNGAN ALL", "TABUNGAN WEM", "TABUNGAN EXC WEM"],
                 type: "standard"
             },
+            "DPK_TABUNGAN": {
+                title: "Detail Rebound - Tabungan",
+                products: ["Tabungan All", "Tabungan WEM Private", "Tabungan exc. WEM Private"],
+                type: "dpk_detail"
+            },
+            "DPK_GIRO": {
+                title: "Detail Rebound - Giro",
+                products: ["Giro"],
+                type: "dpk_detail"
+            },
+            "DPK_DEPOSITO": {
+                title: "Detail Rebound - Deposito",
+                products: ["Deposito"],
+                type: "dpk_detail"
+            },
             "KONSUMER": {
                 title: "Dashboard Kredit Konsumer",
                 products: ["Total Konsumer", "Fleksi", "Griya", "Instan"],
@@ -354,7 +380,6 @@
             if(overlay) overlay.style.display = "none";
         }
 
-        // Fungsi toggle section leaderboard
         function toggleSection(elementId, btn) {
             const listEl = document.getElementById(elementId);
             if(listEl) {
@@ -389,7 +414,7 @@
                 filename:     `Dashboard_${CURRENT_MENU}_${new Date().toISOString().split('T')[0]}.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
                 html2canvas:  { scale: 2, useCORS: true, logging: false },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: CURRENT_MENU !== 'BOOKING_SALES' ? 'portrait' : 'landscape' }
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: (CURRENT_MENU !== 'BOOKING_SALES' && CONFIG[CURRENT_MENU].type !== 'dpk_detail') ? 'portrait' : 'landscape' }
             };
 
             setTimeout(() => {
@@ -507,6 +532,17 @@
             }
             return String(val).trim();
         }
+        
+        function formatHeaderDate(val) {
+            if(!val) return "";
+            let d = new Date(val);
+            if(!isNaN(d.getTime())) {
+                const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                let day = String(d.getDate()).padStart(2, '0');
+                return `${day} ${months[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`;
+            }
+            return String(val).trim();
+        }
 
         async function fetchAPI(isManualRefresh = false) {
             showLoading(true);
@@ -566,7 +602,65 @@
 
                 renderStandardFiltersAndDashboard();
 
-            } else if(cfg.type === "performance") {
+            } 
+            else if(cfg.type === "dpk_detail") {
+                filterArea.innerHTML = `
+                    <div class="filter-group"><label>OUTLET</label><select id="outlet-select" onchange="renderDpkDetailDashboard()"><option value="ALL">Semua Cabang</option></select></div>
+                    <div class="filter-group"><label>PILIH TARGET BULAN</label><select id="target-date-select" onchange="renderDpkDetailDashboard()"></select></div>
+                    <div class="filter-group"><label>PILIH REALISASI TANGGAL</label><select id="date-select" onchange="renderDpkDetailDashboard()"></select></div>
+                    <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
+                `;
+
+                contentArea.innerHTML = `
+                    <div class="section-subtitle">Tabel Detail Realisasi & Rebound</div>
+                    <div class="table-card">
+                        <div class="table-responsive">
+                            <table class="kpi-table" id="dpk-detail-table">
+                                <thead id="dpk-detail-table-head"></thead>
+                                <tbody id="dpk-detail-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                        <div class="leaderboard-section-title" style="margin: 0;">🏆 LEADERBOARD CABANG</div>
+                        <div class="filter-group" style="max-width: 250px; min-width: 200px;">
+                            <label style="font-size:10px;">URUTKAN BERDASARKAN:</label>
+                            <select id="leaderboard-metric-select" onchange="updateLeaderboardData()">
+                                <option value="gapProps">Gap to T_Props</option>
+                                <option value="gapTFY">Gap to T_FY 2026</option>
+                                <option value="dtd">DTD</option>
+                                <option value="mtd">MTD</option>
+                                <option value="ytd">YTD</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="leaderboard-grid">
+                        <div class="leaderboard-card">
+                            <div class="leaderboard-header-row">
+                                <div>
+                                    <div class="leaderboard-title">🏆 Top 5 Cabang</div>
+                                    <div class="leaderboard-subtitle">Cabang • Kriteria Nilai</div>
+                                </div>
+                                <button class="toggle-btn" onclick="toggleSection('top5-list', this)">Sembunyikan</button>
+                            </div>
+                            <div class="leaderboard-list" id="top5-list"></div>
+                        </div>
+                        <div class="leaderboard-card">
+                            <div class="leaderboard-header-row">
+                                <div>
+                                    <div class="leaderboard-title">📉 Bottom 5 Cabang</div>
+                                    <div class="leaderboard-subtitle">Cabang • Kriteria Nilai</div>
+                                </div>
+                                <button class="toggle-btn" onclick="toggleSection('bot5-list', this)">Sembunyikan</button>
+                            </div>
+                            <div class="leaderboard-list" id="bot5-list"></div>
+                        </div>
+                    </div>
+                `;
+                renderDpkDetailFiltersAndDashboard();
+            }
+            else if(cfg.type === "performance") {
                 filterArea.innerHTML = `
                     <div class="filter-group">
                         <label>OUTLET</label>
@@ -739,7 +833,6 @@
                         </div>
                     </div>
 
-                    <!-- ELEMEN CANVAS UNTUK GRAFIK BOOKING TREND DITAMBAHKAN DI SINI -->
                     <div class="chart-card">
                         <div class="chart-header">Tren Booking per Bulan</div>
                         <div class="chart-container">
@@ -870,7 +963,199 @@
                 ctx.restore();
             }
         };
-        
+
+        function renderDpkDetailFiltersAndDashboard() {
+            let D_REAL = RAW.realisasi;
+            let D_TARG = RAW.target;
+            if(!D_REAL || !D_TARG) return;
+
+            let colReal = D_REAL[1], colTarget = D_TARG[1];
+            let dates = [], targets = [], outlets = new Set();
+            
+            for(let i = 5; i < colReal.length - 1; i++) {
+                let fDate = formatDate(colReal[i]);
+                if(fDate) {
+                    let hasDataInColumn = false;
+                    for(let r = 2; r < D_REAL.length; r++) {
+                        let val = D_REAL[r][i];
+                        if(val !== undefined && val !== null && String(val).trim() !== "" && !isNaN(parseFloat(val))) {
+                            hasDataInColumn = true;
+                            break;
+                        }
+                    }
+                    if(hasDataInColumn) dates.push({ idx: i, val: fDate });
+                }
+            }
+
+            for(let i = 2; i < colTarget.length; i++) {
+                let tLabel = formatTargetHeader(colTarget[i]);
+                if(tLabel && tLabel.includes("-") && tLabel.length <= 6) targets.push({ idx: i, val: tLabel });
+            }
+            for(let r = 2; r < D_REAL.length; r++) { if(D_REAL[r][4]) outlets.add(D_REAL[r][4]); }
+
+            const selDate = document.getElementById("date-select");
+            const selTarg = document.getElementById("target-date-select");
+            const selOutl = document.getElementById("outlet-select");
+
+            if(selDate) {
+                selDate.innerHTML = "";
+                dates.forEach(d => selDate.add(new Option(d.val, d.idx)));
+            }
+            if(selTarg && selTarg.options.length === 0) targets.forEach(t => selTarg.add(new Option(t.val, t.idx)));
+            if(selOutl && selOutl.options.length === 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
+
+            renderDpkDetailDashboard();
+        }
+
+        // --- LOGIKA UTAMA TABEL DETAIL REBOUND DPK (CROSS-CHECK & PERBAIKAN URUTAN) ---
+        let globalCalculatedRows = [];
+
+        function formatGapWithArrow(num) {
+            let absVal = Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2});
+            return num < 0 ? `<span class="text-red">↓ -${absVal}</span>` : `<span class="text-green">↑ +${absVal}</span>`;
+        }
+
+        function renderDpkDetailDashboard() {
+            let selTargetEl = document.getElementById("target-date-select");
+            let selDateEl = document.getElementById("date-select");
+            if (!selTargetEl || !selDateEl || !selTargetEl.value || !selDateEl.value) return;
+
+            let D_REAL = RAW.realisasi, D_TARG = RAW.target;
+            if(!D_REAL || !D_TARG) return;
+
+            const sOutlet = document.getElementById("outlet-select").value;
+            const sDateIdx = parseInt(selDateEl.value);
+            const sTargIdx = parseInt(selTargetEl.value);
+            const des25Idx = D_REAL[1].length - 1; 
+            
+            let tfyIdx = -1; 
+            for(let i=2; i<D_TARG[1].length; i++) { if(formatTargetHeader(D_TARG[1][i]) === "Dec-26") tfyIdx = i; }
+
+            let selDateObjForH1 = new Date(formatDate(D_REAL[1][sDateIdx]));
+            selDateObjForH1.setDate(selDateObjForH1.getDate() - 1);
+            let targetH1Str = selDateObjForH1.toISOString().split('T')[0];
+
+            let hMin1Idx = sDateIdx;
+            for(let i = 5; i < D_REAL[1].length - 1; i++) {
+                if(formatDate(D_REAL[1][i]) === targetH1Str) { hMin1Idx = i; break; }
+            }
+
+            let selectedDateStr = D_REAL[1][sDateIdx];
+            let selDateObj = new Date(formatDate(selectedDateStr));
+            let targetPrevMonth = selDateObj.getMonth() === 0 ? 11 : selDateObj.getMonth() - 1;
+            let targetPrevYear = selDateObj.getMonth() === 0 ? selDateObj.getFullYear() - 1 : selDateObj.getFullYear();
+
+            let mMin1Idx = sDateIdx; 
+            for(let i = 5; i < D_REAL[1].length - 1; i++) {
+                let d = new Date(formatDate(D_REAL[1][i]));
+                if(!isNaN(d.getTime()) && d.getMonth() === targetPrevMonth && d.getFullYear() === targetPrevYear) mMin1Idx = i;
+            }
+
+            let headHtml = `
+                <tr>
+                    <th rowspan="2" style="text-align:center; vertical-align:middle; background-color:#0f172a; border: 1px solid #1e293b;">Produk</th>
+                    <th colspan="4" style="text-align:center; background-color:#1e293b; border: 1px solid #334155;">Realisasi</th>
+                    <th colspan="2" style="text-align:center; background-color:#b45309; border: 1px solid #78350f;">Target</th>
+                    <th colspan="2" style="text-align:center; background-color:#475569; border: 1px solid #334155;">Gap To Target</th>
+                    <th colspan="3" style="text-align:center; background-color:#047857; border: 1px solid #064e3b;">Rebound</th>
+                </tr>
+                <tr>
+                    <th style="background-color:#0f172a; border: 1px solid #1e293b; font-size:12px;">Dec-25</th>
+                    <th style="background-color:#0f172a; border: 1px solid #1e293b; font-size:12px;">${formatHeaderDate(D_REAL[1][mMin1Idx])}</th>
+                    <th style="background-color:#0f172a; border: 1px solid #1e293b; font-size:12px;">${formatHeaderDate(D_REAL[1][hMin1Idx])}</th>
+                    <th style="background-color:#0f172a; border: 1px solid #1e293b; font-size:12px;">${formatHeaderDate(D_REAL[1][sDateIdx])}</th>
+                    <th style="background-color:#b45309; border: 1px solid #78350f; font-size:12px;">T_Props</th>
+                    <th style="background-color:#b45309; border: 1px solid #78350f; font-size:12px;">T_FY 2026</th>
+                    <th style="background-color:#475569; border: 1px solid #334155; font-size:12px;">to T_Props</th>
+                    <th style="background-color:#475569; border: 1px solid #334155; font-size:12px;">to T_FY 2026</th>
+                    <th style="background-color:#047857; border: 1px solid #064e3b; font-size:12px;">DTD</th>
+                    <th style="background-color:#047857; border: 1px solid #064e3b; font-size:12px;">MTD</th>
+                    <th style="background-color:#047857; border: 1px solid #064e3b; font-size:12px;">YTD</th>
+                </tr>
+            `;
+            document.getElementById("dpk-detail-table-head").innerHTML = headHtml;
+
+            let tbodyHtml = "";
+            globalCalculatedRows = [];
+
+            // Tentukan produk acuan untuk leaderboard (sesuai catatan: Tabungan untuk menu tabungan)
+            let leaderboardProduct = CURRENT_MENU === "DPK_TABUNGAN" ? "Tabungan All" : CONFIG[CURRENT_MENU].products[0];
+
+            // 1. HITUNG DATA UNTUK TABEL UTAMA BERDASARKAN FILTER OUTLET YANG DIPILIH
+            CONFIG[CURRENT_MENU].products.forEach(prodName => {
+                let valCurr = 0, valH1 = 0, valM1 = 0, valDec25 = 0, valTProp = 0, valTFY = 0;
+                
+                for(let r = 2; r < D_REAL.length; r++) {
+                    if(String(D_REAL[r][0]).trim() === prodName && (sOutlet === "ALL" || String(D_REAL[r][4]).trim() === sOutlet)) {
+                        valCurr += parseFloat(D_REAL[r][sDateIdx]) || 0;     
+                        valH1 += parseFloat(D_REAL[r][hMin1Idx]) || 0;       
+                        valM1 += parseFloat(D_REAL[r][mMin1Idx]) || 0;       
+                        valDec25 += parseFloat(D_REAL[r][des25Idx]) || 0;    
+                    }
+                }
+                valTProp = getTargetVal(D_TARG, prodName, sOutlet, sTargIdx);
+                valTFY = getTargetVal(D_TARG, prodName, sOutlet, tfyIdx);
+
+                let gapProps = valCurr - valTProp;
+                let gapTFY = valCurr - valTFY;
+                let dtd = valCurr - valH1;
+                let mtd = valCurr - valM1;
+                let ytd = valCurr - valDec25;
+
+                tbodyHtml += `
+                    <tr style="text-align:right;">
+                        <td style="text-align:left;"><b>${prodName}</b></td>
+                        <td>${formatM(valDec25 / 1e9).replace(' M', '')}</td>
+                        <td>${formatM(valM1 / 1e9).replace(' M', '')}</td>
+                        <td>${formatM(valH1 / 1e9).replace(' M', '')}</td>
+                        <td style="background-color:#f1f5f9;"><b>${formatM(valCurr / 1e9).replace(' M', '')}</b></td>
+                        <td>${formatM(valTProp / 1e9).replace(' M', '')}</td>
+                        <td>${formatM(valTFY / 1e9).replace(' M', '')}</td>
+                        <td><b>${formatGapWithArrow(gapProps / 1e9)}</b></td>
+                        <td><b>${formatGapWithArrow(gapTFY / 1e9)}</b></td>
+                        <td><b>${formatGapWithArrow(dtd / 1e9)}</b></td>
+                        <td><b>${formatGapWithArrow(mtd / 1e9)}</b></td>
+                        <td><b>${formatGapWithArrow(ytd / 1e9)}</b></td>
+                    </tr>
+                `;
+            });
+            document.getElementById("dpk-detail-table-body").innerHTML = tbodyHtml;
+
+            // 2. HITUNG KUMPULAN DATA SEMUA OUTLET SECARA KHUSUS UNTUK LEADERBOARD
+            let outletSummaryMap = {};
+            for(let r = 2; r < D_REAL.length; r++) {
+                let rProd = String(D_REAL[r][0]).trim();
+                let rOutlet = String(D_REAL[r][4]).trim();
+                
+                if(rProd === leaderboardProduct && rOutlet) {
+                    if(!outletSummaryMap[rOutlet]) {
+                        outletSummaryMap[rOutlet] = { curr: 0, h1: 0, m1: 0, dec25: 0 };
+                    }
+                    outletSummaryMap[rOutlet].curr += parseFloat(D_REAL[r][sDateIdx]) || 0;
+                    outletSummaryMap[rOutlet].h1 += parseFloat(D_REAL[r][hMin1Idx]) || 0;
+                    outletSummaryMap[rOutlet].m1 += parseFloat(D_REAL[r][mMin1Idx]) || 0;
+                    outletSummaryMap[rOutlet].dec25 += parseFloat(D_REAL[r][des25Idx]) || 0;
+                }
+            }
+
+            Object.keys(outletSummaryMap).forEach(outName => {
+                let oData = outletSummaryMap[outName];
+                let oTProp = getTargetVal(D_TARG, leaderboardProduct, outName, sTargIdx);
+                let oTFY = getTargetVal(D_TARG, leaderboardProduct, outName, tfyIdx);
+
+                globalCalculatedRows.push({
+                    name: outName,
+                    gapProps: (oData.curr - oTProp) / 1e9,
+                    gapTFY: (oData.curr - oTFY) / 1e9,
+                    dtd: (oData.curr - oData.h1) / 1e9,
+                    mtd: (oData.curr - oData.m1) / 1e9,
+                    ytd: (oData.curr - oData.dec25) / 1e9
+                });
+            });
+
+            updateLeaderboardData();
+        }
+
         function renderStandardFiltersAndDashboard() {
             let D_REAL = CURRENT_MENU === "DPK" ? RAW.realisasi : (CURRENT_MENU === "KONSUMER" ? RAW.realisasi_kons : RAW.realisasi_prod);
             let D_TARG = CURRENT_MENU === "DPK" ? RAW.target : (CURRENT_MENU === "KONSUMER" ? RAW.target_kons : RAW.target_prod);
@@ -1432,10 +1717,6 @@
             document.getElementById("val-book-total").innerText = formatM(grandTotal / 1e9);
             document.getElementById("book-update-date").innerText = "Update Data: " + new Date().toLocaleDateString('id-ID');
 
-
-            // -------------------------------------------------------------
-            // KODE BARU YANG DITAMBAHKAN: RENDER CHART TREN BULANAN BOOKING
-            // -------------------------------------------------------------
             let monthlyTrendData = [];
             monthCols.forEach(m => {
                 let monthSum = 0;
@@ -1457,8 +1738,6 @@
             });
 
             if(bookingTrendChart) bookingTrendChart.destroy();
-            
-            // Cek apakah elemen canvas sudah di-render di DOM
             let canvasElement = document.getElementById('bookingTrendChart');
             if (canvasElement) {
                 bookingTrendChart = new Chart(canvasElement.getContext('2d'), {
@@ -1504,9 +1783,7 @@
                     }
                 });
             }
-            // -------------------------------------------------------------
 
-            // Render komponen lainnya
             renderBookingLeaderboardsAndTable(salesMap, bookData, monthCols);
         }
 
@@ -1542,7 +1819,6 @@
             document.getElementById("booking-table-body").innerHTML = tbodyHtml;
         }
 
-        // FUNGSI KHUSUS UNTUK BOOKING LEADERBOARD (Satuan Milyar Rupiah)
         function fillBookingLeaderboardHtml(elementId, listData, isTop) {
             const container = document.getElementById(elementId);
             if(!container) return;
