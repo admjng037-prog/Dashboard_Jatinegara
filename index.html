@@ -277,6 +277,20 @@
                 </li>
             </ul>
 
+            
+            <div class="menu-category">Pipeline</div>
+            <ul class="menu-list">
+                <li class="menu-item" onclick="switchMenu('PIPELINE_KONSUMER', this)">
+                    <span class="icon">📋</span> Pipeline Konsumer
+                </li>
+                <li class="menu-item" onclick="switchMenu('PIPELINE_PRODUKTIF', this)">
+                    <span class="icon">📋</span> Pipeline Produktif
+                </li>
+                <li class="menu-item" onclick="switchMenu('PIPELINE_DPK', this)">
+                    <span class="icon">📋</span> Pipeline DPK
+                </li>
+            </ul>
+
             <div class="menu-category">Kinerja Sales</div>
             <ul class="menu-list">
                 <li class="menu-item" onclick="switchMenu('PERFORMANCE_SALES', this)">
@@ -308,7 +322,8 @@
     </div>
 
     <script>
-        const API_URL = "https://script.google.com/macros/s/AKfycbxNGG5xm0zjOtL8Jzoa_Xomjp3ruZbodwR815LvJZZ1Hm7El8SkB0yj8sGCmx29S7Y/exec";
+        // API URL sudah diperbarui dengan link yang baru
+        const API_URL = "https://script.google.com/macros/s/AKfycbz0gKn5sGmEpMlqJ5rZiAXHtNNMEsgzA8oWsHcudlHPF7DEM-clSzZjPck4uS2VnIL3/exec";
 
         let RAW = null; 
         let CURRENT_MENU = "DPK"; 
@@ -367,6 +382,23 @@
                 title: "Performance KPI Sales",
                 type: "performance"
             },
+            
+            "PIPELINE_KONSUMER": {
+                title: "Pipeline Konsumer (Fleksi & Griya)",
+                type: "pipeline",
+                category: "KONSUMER"
+            },
+            "PIPELINE_PRODUKTIF": {
+                title: "Pipeline Produktif (KUR & BWU)",
+                type: "pipeline",
+                category: "PRODUKTIF"
+            },
+            "PIPELINE_DPK": {
+                title: "Pipeline DPK",
+                type: "pipeline",
+                category: "DPK"
+            },
+
             "BOOKING_SALES": {
                 title: "Performance Booking Sales",
                 type: "booking"
@@ -662,6 +694,89 @@
                     </div>
                 `;
                 renderDpkDetailFiltersAndDashboard();
+            }
+            else if(cfg.type === "pipeline") {
+                // HALAMAN MAINTENANCE KHUSUS DPK
+                if (CURRENT_MENU === "PIPELINE_DPK") {
+                    filterArea.innerHTML = "";
+                    contentArea.innerHTML = `
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 80px; text-align: center; color: var(--text-muted);">
+                            <div style="font-size: 64px; margin-bottom: 20px; animation: spin 4s linear infinite;">⚙️</div>
+                            <h2 style="color: var(--bg-sidebar); margin-bottom: 10px; font-weight: 800;">Under Maintenance</h2>
+                            <p style="font-size: 15px;">Menu Pipeline DPK sedang dalam tahap persiapan & integrasi data.<br><b>Coming Soon!</b></p>
+                        </div>
+                    `;
+                    return; // Hentikan render script selanjutnya jika ini menu DPK
+                }
+
+                // UI UNTUK KONSUMER & PRODUKTIF
+                filterArea.innerHTML = `
+                    <div class="filter-group">
+                        <label>OUTLET</label>
+                        <select id="pipeline-outlet" onchange="renderPipelineDashboard()"><option value="ALL">Semua Outlet</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>TIPE SALES</label>
+                        <select id="pipeline-typesales" onchange="renderPipelineDashboard()"><option value="ALL">Semua Tipe</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>NAMA SALES</label>
+                        <select id="pipeline-namasales" onchange="renderPipelineDashboard()"><option value="ALL">Semua Sales</option></select>
+                    </div>
+                    <div class="update-data-badge" id="pipeline-update-date">Update Data: Hari ini</div>
+                    <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
+                `;
+
+                contentArea.innerHTML = `
+                    <div class="booking-row" id="pipeline-cards-row"></div>
+                    
+                    <div id="pipeline-active-container"></div>
+                    
+                    <div class="section-subtitle">Rincian Total Booking</div>
+                    <div class="table-card">
+                        <div style="padding: 15px 20px; font-size:12px; color:var(--text-muted); border-bottom:1px solid var(--border-color);" id="pipeline-booking-summary">
+                            Realisasi booking per produk • 0 debitur • Rp 0,00 M
+                        </div>
+                        <div style="padding: 20px;" id="pipeline-booking-bars"></div>
+                    </div>
+                    
+                    <div class="section-subtitle">Rincian Total Cancel</div>
+                    <div class="table-card" style="border-left: 4px solid var(--danger-red);">
+                        <div style="padding: 15px 20px; font-size:12px; color:var(--text-muted); border-bottom:1px solid var(--border-color);" id="pipeline-cancel-summary">
+                            Realisasi cancel per produk • 0 debitur • Rp 0,00 M
+                        </div>
+                        <div style="padding: 20px;" id="pipeline-cancel-bars"></div>
+                    </div>
+
+                    <!-- TAMBAHAN TABEL RINCIAN DATA -->
+                    <div class="section-subtitle" id="pipeline-table-title">Rincian Pipeline</div>
+                    <div class="table-card">
+                        <div style="padding: 15px 20px; font-size:12px; color:var(--text-muted); border-bottom:1px solid var(--border-color);" id="pipeline-table-count">
+                            0 baris
+                        </div>
+                        <div class="table-responsive">
+                            <table class="kpi-table" id="pipeline-detail-table">
+                                <thead>
+                                    <tr>
+                                        <th>BULAN ↕</th>
+                                        <th>TIPE ↕</th>
+                                        <th>SALES ↕</th>
+                                        <th>PRODUK ↕</th>
+                                        <th>DEBITUR ↕</th>
+                                        <th>INSTANSI ↕</th>
+                                        <th>OUTLET ↕</th>
+                                        <th>PLAFON ↕</th>
+                                        <th>BAKI DEBET ↕</th>
+                                        <th>PROGRESS ↕</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pipeline-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+
+                renderPipelineFiltersAndDashboard();
             }
             else if(cfg.type === "performance") {
                 filterArea.innerHTML = `
@@ -1947,6 +2062,291 @@
                 `;
             });
         }
+    
+        function renderPipelineFiltersAndDashboard() {
+            // Dinamis sesuai menu aktif (KONSUMER atau PRODUKTIF)
+            let pipelineData = CURRENT_MENU === "PIPELINE_KONSUMER" ? RAW.pipeline_konsumer : RAW.pipeline_produktif;
+            if(!pipelineData || pipelineData.length < 2) return;
+
+            let outlets = new Set();
+            let tipeSales = new Set();
+            let namaSales = new Set();
+
+            for(let r = 1; r < pipelineData.length; r++) {
+                let row = pipelineData[r];
+                if(row.length > 3) {
+                    if(row[1]) outlets.add(String(row[1]).trim());
+                    if(row[2]) tipeSales.add(String(row[2]).trim());
+                    if(row[3]) namaSales.add(String(row[3]).trim());
+                }
+            }
+
+            const selOutl = document.getElementById("pipeline-outlet");
+            const selType = document.getElementById("pipeline-typesales");
+            const selNama = document.getElementById("pipeline-namasales");
+            
+            // Reset Dropdown
+            if(selOutl) selOutl.options.length = 1; 
+            if(selType) selType.options.length = 1; 
+            if(selNama) selNama.options.length = 1; 
+
+            if(selOutl) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
+            if(selType) Array.from(tipeSales).sort().forEach(t => selType.add(new Option(t, t)));
+            if(selNama) Array.from(namaSales).sort().forEach(n => selNama.add(new Option(n, n)));
+
+            renderPipelineDashboard();
+        }
+
+       function renderPipelineDashboard() {
+            let pipelineData = CURRENT_MENU === "PIPELINE_KONSUMER" ? RAW.pipeline_konsumer : RAW.pipeline_produktif;
+            
+            if(!pipelineData || pipelineData.length < 2) {
+                document.getElementById("pipeline-cards-row").innerHTML = "<div style='padding:20px;'>Data Pipeline belum tersedia.</div>";
+                return;
+            }
+
+            const fOutlet = document.getElementById("pipeline-outlet").value;
+            const fType = document.getElementById("pipeline-typesales").value;
+            const fNama = document.getElementById("pipeline-namasales").value;
+
+            let targetProducts = CURRENT_MENU === "PIPELINE_KONSUMER" ? ["Fleksi", "Griya"] : ["KUR", "BWU"];
+            let menuLabel = CURRENT_MENU === "PIPELINE_KONSUMER" ? "KONSUMER" : "PRODUKTIF";
+            
+            let productStats = {};
+            targetProducts.forEach(p => {
+                productStats[p] = { 
+                    nominal: 0, debitur: 0, 
+                    bookingNominal: 0, bookingDebitur: 0, 
+                    cancelNominal: 0, cancelDebitur: 0,
+                    statusMap: {} 
+                };
+            });
+
+            let totalDebiturBooking = 0, totalNominalBooking = 0;
+            let totalDebiturCancel = 0, totalNominalCancel = 0;
+
+            let colOutlet = 1;
+            let colTipeSales = 2;
+            let colNamaSales = 3;
+            let colProduk = 4;
+            let colNominal = 6;
+            let colProgress = 10;
+            let colDebitur = 5;  // Kolom F: Nama Nasabah
+            let colInstansi = 7; // Kolom H: Perusahaan
+
+            const validStatusList = [
+                "BOOKING", "AKAD BELUM BOOKING", "PENDING AKAD", 
+                "APPROVED", "PROSES APPROVED", "PROSES ANALIS", 
+                "COLLECT DATA", "CANCEL"
+            ];
+
+            let tableRowsHtml = [];
+
+            for(let r = 1; r < pipelineData.length; r++) {
+                let row = pipelineData[r];
+                if(row.length <= colNominal) continue;
+
+                let outlet = String(row[colOutlet] || "").trim();
+                let tipeSales = String(row[colTipeSales] || "").trim();
+                let namaSales = String(row[colNamaSales] || "").trim();
+                let produk = String(row[colProduk] || "").trim();
+                let nominal = parseFloat(row[colNominal]) || 0;
+                
+                let statusRaw = String(row[colProgress] || "").trim().toUpperCase();
+                
+                if(statusRaw === "" || !validStatusList.includes(statusRaw)) continue;
+
+                if(fOutlet !== "ALL") {
+                    let kodeDropdown = fOutlet.substring(0, 2);
+                    let kodeSpreadsheet = outlet.substring(0, 2);
+                    if(kodeDropdown !== kodeSpreadsheet) continue;
+                }
+                
+                if(fType !== "ALL" && tipeSales !== fType) continue;
+                if(fNama !== "ALL" && namaSales !== fNama) continue;
+
+                let matchedProd = targetProducts.find(p => produk.toUpperCase().includes(p.toUpperCase()));
+                if(matchedProd) {
+                    // Kalkulasi Statistik
+                    if (statusRaw === "CANCEL") {
+                        productStats[matchedProd].cancelNominal += nominal;
+                        productStats[matchedProd].cancelDebitur += 1;
+                        totalNominalCancel += nominal;
+                        totalDebiturCancel += 1;
+                    } else if (statusRaw === "BOOKING") {
+                        productStats[matchedProd].bookingNominal += nominal;
+                        productStats[matchedProd].bookingDebitur += 1;
+                        totalNominalBooking += nominal;
+                        totalDebiturBooking += 1;
+                    } else {
+                        productStats[matchedProd].nominal += nominal;
+                        productStats[matchedProd].debitur += 1;
+                        if(!productStats[matchedProd].statusMap[statusRaw]) {
+                            productStats[matchedProd].statusMap[statusRaw] = { count: 0, nominal: 0 };
+                        }
+                        productStats[matchedProd].statusMap[statusRaw].count += 1;
+                        productStats[matchedProd].statusMap[statusRaw].nominal += nominal;
+                    }
+
+                    // Menyiapkan Data untuk Tabel Rincian
+                    let tglObj = new Date(row[0]);
+                    let tglStr = !isNaN(tglObj.getTime()) ? tglObj.getDate() + " " + tglObj.toLocaleString('id-ID', {month:'short'}).toUpperCase() : "-";
+                    let namaDebitur = String(row[colDebitur] || "-").trim();
+                    let namaInstansi = String(row[colInstansi] || "-").trim();
+                    let formattedNominal = "Rp " + formatM(nominal / 1e9);
+
+                    let badgeClass = "ns";
+                    if (statusRaw === "BOOKING") badgeClass = "green";
+                    if (statusRaw === "CANCEL") badgeClass = "red";
+
+                    tableRowsHtml.push(`
+                        <tr>
+                            <td>${tglStr}</td>
+                            <td><span class="badge-cell ns" style="background:#f1f5f9; border:1px solid #cbd5e1; color:#475569;">${menuLabel}</span></td>
+                            <td><b>${namaSales}</b></td>
+                            <td>${produk}</td>
+                            <td>${namaDebitur}</td>
+                            <td>${namaInstansi}</td>
+                            <td>${outlet}</td>
+                            <td>${formattedNominal}</td>
+                            <td>${formattedNominal}</td>
+                            <td><span class="badge-cell ${badgeClass}" style="font-size: 11px; padding: 4px 8px;">${statusRaw}</span></td>
+                        </tr>
+                    `);
+                }
+            }
+
+            // ================= RENDER PRODUCT CARDS =================
+            let cardsHtml = "";
+            targetProducts.forEach(p => {
+                let st = productStats[p];
+                let totalDeb = st.debitur + st.bookingDebitur;
+                cardsHtml += `
+                    <div class="kpi-card">
+                        <div class="kpi-header">PIPELINE ${p.toUpperCase()}</div>
+                        <h2 class="kpi-main-val">${formatM(st.nominal / 1e9)}</h2>
+                        <div class="kpi-sub-val" style="margin-bottom:10px;">${st.debitur} debitur • belum booking</div>
+                        <div class="kpi-detail-grid">
+                            <div class="detail-row"><span>Nominal Booking (Cair)</span><span style="font-weight:700; color:var(--success-green);">Rp ${formatM(st.bookingNominal / 1e9)}</span></div>
+                            <div class="detail-row"><span>Jumlah Debitur Cair</span><span style="font-weight:700;">${st.bookingDebitur}</span></div>
+                            <div class="detail-row"><span>Total Debitur (Aktif + Cair)</span><span style="font-weight:700;">${totalDeb}</span></div>
+                        </div>
+                    </div>
+                `;
+            });
+            document.getElementById("pipeline-cards-row").innerHTML = cardsHtml;
+            document.getElementById("pipeline-update-date").innerText = "Update Data: " + new Date().toLocaleDateString('id-ID');
+
+            // ================= RENDER PIPELINE AKTIF PER PRODUK =================
+            let activeContainerHtml = "";
+            targetProducts.forEach(p => {
+                let st = productStats[p];
+                let sMap = st.statusMap;
+                let statusKeys = Object.keys(sMap).sort((a,b) => sMap[b].count - sMap[a].count);
+                let maxCount = statusKeys.length > 0 ? sMap[statusKeys[0]].count : 1;
+                
+                let statusHtml = "";
+                if(statusKeys.length === 0) {
+                     statusHtml = `<div style='font-size:13px; color:#888;'>Belum ada data status pipeline aktif untuk ${p.toUpperCase()}.</div>`;
+                } else {
+                    let colorPalette = ["#10b981", "#ef4444", "#f59e0b", "#0ea5e9", "#8b5cf6", "#64748b"];
+                    statusKeys.forEach((key, idx) => {
+                        let s = sMap[key];
+                        let pct = Math.max(5, (s.count / maxCount) * 100);
+                        let color = colorPalette[idx % colorPalette.length];
+                        statusHtml += `
+                            <div style="display:flex; align-items:center; margin-bottom:12px; gap:15px; font-size:13px;">
+                                <div style="width:230px; font-weight:700; color:var(--text-main); font-size:12px;">${key}</div>
+                                <div style="flex:1; background:#f1f5f9; height:22px; border-radius:4px; overflow:hidden; position:relative;">
+                                    <div style="width:${pct}%; background:${color}; height:100%; border-radius:4px;"></div>
+                                </div>
+                                <div style="width:40px; text-align:right; font-weight:700;">${s.count}</div>
+                                <div style="width:100px; text-align:right; color:var(--text-muted); font-size:12px;">Rp ${formatM(s.nominal / 1e9)}</div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                activeContainerHtml += `
+                    <div class="section-subtitle">Rincian Total Pipeline Aktif - ${p.toUpperCase()}</div>
+                    <div class="table-card" style="margin-bottom: 25px;">
+                        <div style="padding: 15px 20px; font-size:12px; color:var(--text-muted); border-bottom:1px solid var(--border-color);">
+                            Status dalam proses (belum cair) • ${st.debitur} debitur • Rp ${formatM(st.nominal / 1e9)}
+                        </div>
+                        <div style="padding: 20px;">${statusHtml}</div>
+                    </div>
+                `;
+            });
+            document.getElementById("pipeline-active-container").innerHTML = activeContainerHtml;
+
+            // ================= RENDER TOTAL BOOKING =================
+            let bookingHtml = "";
+            if(totalDebiturBooking === 0) {
+                bookingHtml = "<div style='font-size:13px; color:#888;'>Belum ada data yang berstatus Booking.</div>";
+            } else {
+                targetProducts.forEach(p => {
+                    let st = productStats[p];
+                    if(st.bookingDebitur === 0) return;
+                    let pct = totalNominalBooking > 0 ? (st.bookingNominal / totalNominalBooking) * 100 : 20;
+                    let barColor = p.includes("Fleksi") || p.includes("KUR") ? "#10b981" : "#0ea5e9";
+
+                    bookingHtml += `
+                        <div style="display:flex; align-items:center; margin-bottom:12px; gap:15px; font-size:13px;">
+                            <div style="width:230px; font-weight:700; color:var(--text-main);">${p.toUpperCase()}</div>
+                            <div style="flex:1; background:#f1f5f9; height:22px; border-radius:4px; overflow:hidden; position:relative;">
+                                <div style="width:${Math.max(10, pct)}%; background:${barColor}; height:100%; border-radius:4px;"></div>
+                            </div>
+                            <div style="width:40px; text-align:right; font-weight:700;">${st.bookingDebitur}</div>
+                            <div style="width:100px; text-align:right; color:var(--text-muted); font-size:12px;">Rp ${formatM(st.bookingNominal / 1e9)}</div>
+                        </div>
+                    `;
+                });
+            }
+            let bkgBars = document.getElementById("pipeline-booking-bars");
+            if(bkgBars) bkgBars.innerHTML = bookingHtml;
+            let bkgSum = document.getElementById("pipeline-booking-summary");
+            if(bkgSum) bkgSum.innerText = `Realisasi booking per produk • ${totalDebiturBooking} debitur • Rp ${formatM(totalNominalBooking / 1e9)}`;
+
+            // ================= RENDER TOTAL CANCEL =================
+            let cancelHtml = "";
+            if(totalDebiturCancel === 0) {
+                cancelHtml = "<div style='font-size:13px; color:#888;'>Tidak ada data Cancel.</div>";
+            } else {
+                targetProducts.forEach(p => {
+                    let st = productStats[p];
+                    if(st.cancelDebitur === 0) return;
+                    let pct = totalNominalCancel > 0 ? (st.cancelNominal / totalNominalCancel) * 100 : 20;
+                    
+                    cancelHtml += `
+                        <div style="display:flex; align-items:center; margin-bottom:12px; gap:15px; font-size:13px;">
+                            <div style="width:230px; font-weight:700; color:var(--text-main);">${p.toUpperCase()}</div>
+                            <div style="flex:1; background:#f1f5f9; height:22px; border-radius:4px; overflow:hidden; position:relative;">
+                                <div style="width:${Math.max(10, pct)}%; background:var(--danger-red); height:100%; border-radius:4px;"></div>
+                            </div>
+                            <div style="width:40px; text-align:right; font-weight:700; color:var(--danger-red);">${st.cancelDebitur}</div>
+                            <div style="width:100px; text-align:right; color:var(--text-muted); font-size:12px;">Rp ${formatM(st.cancelNominal / 1e9)}</div>
+                        </div>
+                    `;
+                });
+            }
+            let cclBars = document.getElementById("pipeline-cancel-bars");
+            if(cclBars) cclBars.innerHTML = cancelHtml;
+            let cclSum = document.getElementById("pipeline-cancel-summary");
+            if(cclSum) cclSum.innerText = `Realisasi cancel per produk • ${totalDebiturCancel} debitur • Rp ${formatM(totalNominalCancel / 1e9)}`;
+
+            // ================= RENDER TABEL RINCIAN =================
+            let titleEl = document.getElementById("pipeline-table-title");
+            if(titleEl) titleEl.innerText = `Rincian Pipeline ${menuLabel}`;
+            
+            let tableBodyEl = document.getElementById("pipeline-table-body");
+            if(tableBodyEl) {
+                tableBodyEl.innerHTML = tableRowsHtml.length > 0 ? tableRowsHtml.join("") : `<tr><td colspan="10" style="text-align:center; padding:15px;">Tidak ada data yang sesuai dengan filter.</td></tr>`;
+            }
+            
+            let countEl = document.getElementById("pipeline-table-count");
+            if(countEl) countEl.innerText = `${tableRowsHtml.length} baris data ditemukan`;
+        }
+
     </script>
 </body>
 </html>
