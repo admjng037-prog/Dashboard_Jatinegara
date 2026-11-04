@@ -1078,10 +1078,9 @@
             let tbodyHtml = "";
             globalCalculatedRows = [];
 
-            // Tentukan produk acuan untuk leaderboard (sesuai catatan: Tabungan untuk menu tabungan)
             let leaderboardProduct = CURRENT_MENU === "DPK_TABUNGAN" ? "Tabungan All" : CONFIG[CURRENT_MENU].products[0];
 
-            // 1. HITUNG DATA UNTUK TABEL UTAMA BERDASARKAN FILTER OUTLET YANG DIPILIH
+            // 1. HITUNG UNTUK TABEL UTAMA SESUAI FILTER OUTLET
             CONFIG[CURRENT_MENU].products.forEach(prodName => {
                 let valCurr = 0, valH1 = 0, valM1 = 0, valDec25 = 0, valTProp = 0, valTFY = 0;
                 
@@ -1121,13 +1120,13 @@
             });
             document.getElementById("dpk-detail-table-body").innerHTML = tbodyHtml;
 
-            // 2. HITUNG KUMPULAN DATA SEMUA OUTLET SECARA KHUSUS UNTUK LEADERBOARD
+            // 2. KUMPULKAN DATA LEADERBOARD DARI SEMUA OUTLET MENGABAIKAN FILTER (UNTUK "TABUNGAN ALL" ATAU PRODUK DEFAULT)
             let outletSummaryMap = {};
             for(let r = 2; r < D_REAL.length; r++) {
                 let rProd = String(D_REAL[r][0]).trim();
                 let rOutlet = String(D_REAL[r][4]).trim();
                 
-                if(rProd === leaderboardProduct && rOutlet) {
+                if(rProd === leaderboardProduct && rOutlet && rOutlet !== "ALL") {
                     if(!outletSummaryMap[rOutlet]) {
                         outletSummaryMap[rOutlet] = { curr: 0, h1: 0, m1: 0, dec25: 0 };
                     }
@@ -1154,6 +1153,54 @@
             });
 
             updateLeaderboardData();
+        }
+
+        function updateLeaderboardData() {
+            let metricElem = document.getElementById("leaderboard-metric-select");
+            if (!metricElem) return;
+            
+            let metric = metricElem.value;
+            // Sorting Data Descending (yang paling besar ke atas)
+            let sortedRows = [...globalCalculatedRows].sort((a, b) => b[metric] - a[metric]);
+
+            // Ambil Top 5
+            let top5 = sortedRows.slice(0, 5);
+            
+            // Ambil Bottom 5
+            // Karena kita mau yang TERENDAH / MINUS PALING BANYAK berada di urutan No. 1 dari list Bottom 5,
+            // kita membalikkan sorting (Ascending) baru mengambil 5 teratas.
+            let bottom5 = [...globalCalculatedRows].sort((a, b) => a[metric] - b[metric]).slice(0, 5);
+
+            fillDPKLeaderboardHtml("top5-list", top5, true, metric);
+            fillDPKLeaderboardHtml("bot5-list", bottom5, false, metric);
+        }
+
+        // FUNGSI BARU KHUSUS UNTUK MERENDER LEADERBOARD DPK
+        function fillDPKLeaderboardHtml(elementId, listData, isTop, metric) {
+            const container = document.getElementById(elementId);
+            if(!container) return;
+            
+            container.innerHTML = listData.length === 0 ? `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">Tidak ada data</div>` : "";
+            
+            listData.forEach((s, idx) => {
+                let rankClass = idx === 0 ? "rank-1" : (idx === 1 ? "rank-2" : (idx === 2 ? "rank-3" : "rank-other"));
+                let rankIcon = isTop ? (idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : idx + 1))) : (idx + 1);
+                
+                let scoreVal = s[metric]; 
+                
+                container.innerHTML += `
+                    <div class="leaderboard-item">
+                        <div class="leaderboard-info">
+                            <div class="rank-badge ${rankClass}">${rankIcon}</div>
+                            <div>
+                                <div class="sales-name">${s.name}</div>
+                                <div class="sales-meta">Kriteria: ${metric.toUpperCase()}</div>
+                            </div>
+                        </div>
+                        <div class="sales-score" style="font-size: 13px;">${formatGapWithArrow(scoreVal)}</div>
+                    </div>
+                `;
+            });
         }
 
         function renderStandardFiltersAndDashboard() {
