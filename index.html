@@ -325,6 +325,9 @@
         let animBounceY = 0; 
         let animTime = 0; 
         let isPdfExporting = false;
+        
+        let globalCalculatedRows = [];
+        let globalBookingSalesArray = []; // Variabel global untuk menampung data booking sebelum difilter
 
         const CONFIG = {
             "DPK": {
@@ -840,7 +843,18 @@
                         </div>
                     </div>
 
-                    <div class="leaderboard-section-title">💳 LEADERBOARD BOOKING KONSUMER</div>
+                    <!-- LEADERBOARD KONSUMER DENGAN FILTER -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                        <div class="leaderboard-section-title" style="margin: 0;">💳 LEADERBOARD BOOKING KONSUMER</div>
+                        <div class="filter-group" style="max-width: 250px; min-width: 200px;">
+                            <label style="font-size:10px;">SUB PRODUK KONSUMER:</label>
+                            <select id="filterKonsumer" onchange="updateBookingLeaderboards()">
+                                <option value="ALL">Semua Konsumer (Total)</option>
+                                <option value="Griya">Griya</option>
+                                <option value="Fleksi">Fleksi</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="leaderboard-grid">
                         <div class="leaderboard-card">
                             <div class="leaderboard-header-row">
@@ -865,7 +879,18 @@
                         </div>
                     </div>
 
-                    <div class="leaderboard-section-title">🏭 LEADERBOARD BOOKING SBP (PRODUKTIF)</div>
+                    <!-- LEADERBOARD SBP DENGAN FILTER -->
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                        <div class="leaderboard-section-title" style="margin: 0;">🏭 LEADERBOARD BOOKING SBP (PRODUKTIF)</div>
+                        <div class="filter-group" style="max-width: 250px; min-width: 200px;">
+                            <label style="font-size:10px;">SUB PRODUK SBP:</label>
+                            <select id="filterSBP" onchange="updateBookingLeaderboards()">
+                                <option value="ALL">Semua Produktif SBP (Total)</option>
+                                <option value="KUR">KUR</option>
+                                <option value="BWU">BWU</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="leaderboard-grid">
                         <div class="leaderboard-card">
                             <div class="leaderboard-header-row">
@@ -1007,9 +1032,6 @@
             renderDpkDetailDashboard();
         }
 
-        // --- LOGIKA UTAMA TABEL DETAIL REBOUND DPK (CROSS-CHECK & PERBAIKAN URUTAN) ---
-        let globalCalculatedRows = [];
-
         function formatGapWithArrow(num) {
             let absVal = Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2});
             return num < 0 ? `<span class="text-red">↓ -${absVal}</span>` : `<span class="text-green">↑ +${absVal}</span>`;
@@ -1080,7 +1102,6 @@
 
             let leaderboardProduct = CURRENT_MENU === "DPK_TABUNGAN" ? "Tabungan All" : CONFIG[CURRENT_MENU].products[0];
 
-            // 1. HITUNG UNTUK TABEL UTAMA SESUAI FILTER OUTLET
             CONFIG[CURRENT_MENU].products.forEach(prodName => {
                 let valCurr = 0, valH1 = 0, valM1 = 0, valDec25 = 0, valTProp = 0, valTFY = 0;
                 
@@ -1120,7 +1141,6 @@
             });
             document.getElementById("dpk-detail-table-body").innerHTML = tbodyHtml;
 
-            // 2. KUMPULKAN DATA LEADERBOARD DARI SEMUA OUTLET MENGABAIKAN FILTER (UNTUK "TABUNGAN ALL" ATAU PRODUK DEFAULT)
             let outletSummaryMap = {};
             for(let r = 2; r < D_REAL.length; r++) {
                 let rProd = String(D_REAL[r][0]).trim();
@@ -1160,22 +1180,14 @@
             if (!metricElem) return;
             
             let metric = metricElem.value;
-            // Sorting Data Descending (yang paling besar ke atas)
             let sortedRows = [...globalCalculatedRows].sort((a, b) => b[metric] - a[metric]);
-
-            // Ambil Top 5
             let top5 = sortedRows.slice(0, 5);
-            
-            // Ambil Bottom 5
-            // Karena kita mau yang TERENDAH / MINUS PALING BANYAK berada di urutan No. 1 dari list Bottom 5,
-            // kita membalikkan sorting (Ascending) baru mengambil 5 teratas.
             let bottom5 = [...globalCalculatedRows].sort((a, b) => a[metric] - b[metric]).slice(0, 5);
 
             fillDPKLeaderboardHtml("top5-list", top5, true, metric);
             fillDPKLeaderboardHtml("bot5-list", bottom5, false, metric);
         }
 
-        // FUNGSI BARU KHUSUS UNTUK MERENDER LEADERBOARD DPK
         function fillDPKLeaderboardHtml(elementId, listData, isTop, metric) {
             const container = document.getElementById(elementId);
             if(!container) return;
@@ -1185,7 +1197,6 @@
             listData.forEach((s, idx) => {
                 let rankClass = idx === 0 ? "rank-1" : (idx === 1 ? "rank-2" : (idx === 2 ? "rank-3" : "rank-other"));
                 let rankIcon = isTop ? (idx === 0 ? "🥇" : (idx === 1 ? "🥈" : (idx === 2 ? "🥉" : idx + 1))) : (idx + 1);
-                
                 let scoreVal = s[metric]; 
                 
                 container.innerHTML += `
@@ -1702,6 +1713,7 @@
             renderBookingDashboard();
         }
 
+        
         function renderBookingDashboard() {
             let bookData = RAW.booking;
             if(!bookData || bookData.length < 2) return;
@@ -1722,7 +1734,7 @@
             }
 
             let sumFleksi = 0, sumGriya = 0, sumKur = 0, sumBwu = 0, sumSbp = 0;
-            let salesMap = {};
+            let salesArray = [];
 
             for(let r = 1; r < bookData.length; r++) {
                 let row = bookData[r];
@@ -1736,20 +1748,31 @@
                 if(fType !== "ALL" && tSales !== fType) continue;
                 if(fOutlet !== "ALL" && outlet !== fOutlet) continue;
 
-                let rowTotal = fBulan === "ALL" ? monthCols.reduce((acc, m) => acc + (parseFloat(row[m.idx]) || 0), 0) : (parseFloat(row[fBulan]) || 0);
+                let monthValues = {};
+                let rowTotal = 0;
+                monthCols.forEach(m => {
+                    let val = parseFloat(row[m.idx]) || 0;
+                    monthValues[m.name] = val;
+                    rowTotal += val;
+                });
+
+                let filteredRowTotal = fBulan === "ALL" ? rowTotal : (monthValues[monthCols.find(m => m.idx == fBulan)?.name] || 0);
 
                 let pUpper = produk.toUpperCase();
-                if(pUpper.includes("FLEKSI")) sumFleksi += rowTotal;
-                if(pUpper.includes("GRIYA")) sumGriya += rowTotal;
-                if(pUpper.includes("KUR")) sumKur += rowTotal;
-                if(pUpper.includes("BWU")) sumBwu += rowTotal;
-                if(pUpper.includes("SBP")) sumSbp += rowTotal;
+                if(pUpper.includes("FLEKSI")) sumFleksi += filteredRowTotal;
+                if(pUpper.includes("GRIYA")) sumGriya += filteredRowTotal;
+                if(pUpper.includes("KUR")) sumKur += filteredRowTotal;
+                if(pUpper.includes("BWU")) sumBwu += filteredRowTotal;
+                if(pUpper.includes("SBP")) sumSbp += filteredRowTotal;
 
-                let salesKey = namaSales + "_" + outlet;
-                if(!salesMap[salesKey]) {
-                    salesMap[salesKey] = { name: namaSales, outlet: outlet, type: tSales, produk: produk, total: 0 };
-                }
-                salesMap[salesKey].total += rowTotal;
+                salesArray.push({
+                    name: namaSales,
+                    outlet: outlet,
+                    type: tSales,
+                    produk: produk,
+                    months: monthValues,
+                    total: filteredRowTotal
+                });
             }
 
             let sumKonsumer = sumFleksi + sumGriya;
@@ -1764,24 +1787,11 @@
             document.getElementById("val-book-total").innerText = formatM(grandTotal / 1e9);
             document.getElementById("book-update-date").innerText = "Update Data: " + new Date().toLocaleDateString('id-ID');
 
+            // Trend chart
             let monthlyTrendData = [];
             monthCols.forEach(m => {
-                let monthSum = 0;
-                for(let r = 1; r < bookData.length; r++) {
-                    let row = bookData[r];
-                    let tSales = String(row[0]).trim();
-                    let namaSales = String(row[1]).trim();
-                    let outlet = String(row[2]).trim();
-                    let produk = String(row[3]).trim();
-                    
-                    if(!namaSales) continue;
-                    if(fProd !== "ALL" && produk !== fProd) continue;
-                    if(fType !== "ALL" && tSales !== fType) continue;
-                    if(fOutlet !== "ALL" && outlet !== fOutlet) continue;
-                    
-                    monthSum += (parseFloat(row[m.idx]) || 0);
-                }
-                monthlyTrendData.push(monthSum / 1e9); 
+                let mSum = salesArray.reduce((acc, s) => acc + (s.months[m.name] || 0), 0);
+                monthlyTrendData.push(mSum / 1e9);
             });
 
             if(bookingTrendChart) bookingTrendChart.destroy();
@@ -1831,20 +1841,71 @@
                 });
             }
 
-            renderBookingLeaderboardsAndTable(salesMap, bookData, monthCols);
+            globalBookingSalesArray = salesArray.sort((a, b) => b.total - a.total);
+            updateBookingLeaderboards();
+            renderBookingTable(globalBookingSalesArray, monthCols);
         }
 
-        function renderBookingLeaderboardsAndTable(salesMap, bookData, monthCols) {
-            let salesArray = Object.values(salesMap).sort((a, b) => b.total - a.total);
+        function updateBookingLeaderboards() {
+            if(!globalBookingSalesArray || globalBookingSalesArray.length === 0) return;
+            
+            let filterKonsumerEl = document.getElementById("filterKonsumer");
+            let fSubKons = filterKonsumerEl ? filterKonsumerEl.value : "ALL";
+            
+            let filterSBPEl = document.getElementById("filterSBP");
+            let fSubSBP = filterSBPEl ? filterSBPEl.value : "ALL";
 
-            let konsumerList = salesArray.filter(s => s.produk.toUpperCase().includes("FLEKSI") || s.produk.toUpperCase().includes("GRIYA"));
-            let sbpList = salesArray.filter(s => s.produk.toUpperCase().includes("KUR") || s.produk.toUpperCase().includes("BWU") || s.produk.toUpperCase().includes("SBP") || s.produk.toUpperCase().includes("PRODUKTIF"));
+            // --- KONSUMER ---
+            let konsumerRaw = globalBookingSalesArray.filter(s => {
+                let p = s.produk.toUpperCase();
+                return p.includes("FLEKSI") || p.includes("GRIYA") || p.includes("KONSUMER");
+            });
+
+            let konsumerList = [];
+            if(fSubKons === "ALL") {
+                let mapGroup = {};
+                konsumerRaw.forEach(s => {
+                    let key = s.name + "_" + s.outlet;
+                    if(!mapGroup[key]) {
+                        mapGroup[key] = { name: s.name, outlet: s.outlet, type: s.type, produk: "Fleksi + Griya", total: 0 };
+                    }
+                    mapGroup[key].total += s.total;
+                });
+                konsumerList = Object.values(mapGroup);
+            } else {
+                konsumerList = konsumerRaw.filter(s => s.produk.toUpperCase().includes(fSubKons.toUpperCase()));
+            }
+            konsumerList.sort((a, b) => b.total - a.total);
+
+            // --- SBP (PRODUKTIF) ---
+            let sbpRaw = globalBookingSalesArray.filter(s => {
+                let p = s.produk.toUpperCase();
+                return p.includes("KUR") || p.includes("BWU") || p.includes("SBP") || p.includes("PRODUKTIF");
+            });
+
+            let sbpList = [];
+            if(fSubSBP === "ALL") {
+                let mapGroup = {};
+                sbpRaw.forEach(s => {
+                    let key = s.name + "_" + s.outlet;
+                    if(!mapGroup[key]) {
+                        mapGroup[key] = { name: s.name, outlet: s.outlet, type: s.type, produk: "KUR + BWU", total: 0 };
+                    }
+                    mapGroup[key].total += s.total;
+                });
+                sbpList = Object.values(mapGroup);
+            } else {
+                sbpList = sbpRaw.filter(s => s.produk.toUpperCase().includes(fSubSBP.toUpperCase()));
+            }
+            sbpList.sort((a, b) => b.total - a.total);
 
             fillBookingLeaderboardHtml("top5-kons-list", konsumerList.slice(0, 5), true);
             fillBookingLeaderboardHtml("bot5-kons-list", [...konsumerList].reverse().slice(0, 5), false);
             fillBookingLeaderboardHtml("top5-sbp-list", sbpList.slice(0, 5), true);
             fillBookingLeaderboardHtml("bot5-sbp-list", [...sbpList].reverse().slice(0, 5), false);
+        }
 
+        function renderBookingTable(salesArray, monthCols) {
             let headHtml = `<tr><th>#</th><th>NAMA SALES</th><th>TYPE</th><th>OUTLET</th><th>PRODUK</th>`;
             monthCols.forEach(m => headHtml += `<th>${m.name}</th>`);
             headHtml += `<th>TOTAL</th></tr>`;
@@ -1852,12 +1913,11 @@
 
             let tbodyHtml = "";
             salesArray.forEach((s, idx) => {
-                let originalRow = bookData.find(row => String(row[1]).trim() === s.name && String(row[2]).trim() === s.outlet);
                 tbodyHtml += `<tr><td><b>${idx + 1}</b></td><td><b>${s.name}</b></td><td>${s.type}</td><td>${s.outlet}</td><td>${s.produk}</td>`;
                 
                 let rowSum = 0;
                 monthCols.forEach(m => {
-                    let val = originalRow ? (parseFloat(originalRow[m.idx]) || 0) : 0;
+                    let val = s.months[m.name] || 0;
                     rowSum += val;
                     tbodyHtml += `<td>${val > 0 ? formatM(val / 1e9) : '-'}</td>`;
                 });
