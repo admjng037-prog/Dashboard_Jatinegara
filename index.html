@@ -744,17 +744,64 @@
                 renderDpkDetailFiltersAndDashboard();
             }
             else if(cfg.type === "pipeline") {
-                // HALAMAN MAINTENANCE KHUSUS DPK
+                // TAMPILAN KHUSUS PIPELINE DPK
                 if (CURRENT_MENU === "PIPELINE_DPK") {
-                    filterArea.innerHTML = "";
+                    filterArea.innerHTML = `
+                        <div class="filter-group">
+                            <label>OUTLET</label>
+                            <select id="pipeline-dpk-outlet" onchange="renderPipelineDPKDashboard()"><option value="ALL">Semua Outlet</option></select>
+                        </div>
+                        <div class="filter-group">
+                            <label>JENIS PRODUK</label>
+                            <select id="pipeline-dpk-produk" onchange="renderPipelineDPKDashboard()">
+                                <option value="ALL">Semua Produk (Tabungan & Giro)</option>
+                                <option value="TABUNGAN">Tabungan</option>
+                                <option value="GIRO">Giro</option>
+                            </select>
+                        </div>
+                        <div class="update-data-badge" id="pipeline-update-date">Update Data: Hari ini</div>
+                        <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
+                    `;
+
                     contentArea.innerHTML = `
-                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 80px; text-align: center; color: var(--text-muted);">
-                            <div style="font-size: 64px; margin-bottom: 20px; animation: spin 4s linear infinite;">⚙️</div>
-                            <h2 style="color: var(--bg-sidebar); margin-bottom: 10px; font-weight: 800;">Under Maintenance</h2>
-                            <p style="font-size: 15px;">Menu Pipeline DPK sedang dalam tahap persiapan & integrasi data.<br><b>Coming Soon!</b></p>
+                        <div class="booking-row" id="pipeline-dpk-cards-row"></div>
+                        
+                        <div id="pipeline-dpk-active-container"></div>
+                        
+                        <div class="section-subtitle">Rincian Total Realisasi</div>
+                        <div class="table-card">
+                            <div style="padding: 15px 20px; font-size:12px; color:var(--text-muted); border-bottom:1px solid var(--border-color);" id="pipeline-dpk-realisasi-summary">
+                                Realisasi per produk
+                            </div>
+                            <div style="padding: 20px;" id="pipeline-dpk-realisasi-bars"></div>
+                        </div>
+
+                        <!-- TABEL RINCIAN DATA -->
+                        <div class="section-subtitle">Rincian Pipeline DPK</div>
+                        <div class="table-card">
+                            <div style="padding: 15px 20px; font-size:12px; color:var(--text-muted); border-bottom:1px solid var(--border-color);" id="pipeline-dpk-table-count">
+                                0 baris
+                            </div>
+                            <div class="table-responsive">
+                                <table class="kpi-table" id="pipeline-dpk-detail-table">
+                                    <thead>
+                                        <tr>
+                                            <th>NO ↕</th>
+                                            <th>OUTLET ↕</th>
+                                            <th>NAMA NASABAH ↕</th>
+                                            <th>CASH IN/OUT ↕</th>
+                                            <th>NOMINAL PIPELINE ↕</th>
+                                            <th>NOMINAL REALISASI ↕</th>
+                                            <th>ON PROGRESS ↕</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pipeline-dpk-table-body"></tbody>
+                                </table>
+                            </div>
                         </div>
                     `;
-                    return; // Hentikan render script selanjutnya jika ini menu DPK
+                    renderPipelineDPKFilters(); 
+                    return; // Hentikan render script selanjutnya agar tidak tumpang tindih dengan pipeline lain
                 }
 
                 // UI UNTUK KONSUMER & PRODUKTIF
@@ -2398,6 +2445,183 @@
             
             let countEl = document.getElementById("pipeline-table-count");
             if(countEl) countEl.innerText = `${tableRowsHtml.length} baris data ditemukan`;
+        }
+		function renderPipelineDPKFilters() {
+            let pipelineData = RAW.pipeline_dpk;
+            if(!pipelineData || pipelineData.length < 2) return;
+            
+            let outlets = new Set();
+            // Looping mengambil data unik outlet dari kolom B (index 1)
+            for(let r = 1; r < pipelineData.length; r++) {
+                if(pipelineData[r][1]) outlets.add(String(pipelineData[r][1]).trim());
+            }
+            
+            const selOutl = document.getElementById("pipeline-dpk-outlet");
+            if(selOutl) {
+                selOutl.options.length = 1; // Reset
+                Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
+            }
+            renderPipelineDPKDashboard();
+        }
+
+        function renderPipelineDPKDashboard() {
+            let data = RAW.pipeline_dpk;
+            if(!data || data.length < 2) return;
+
+            let fOutlet = document.getElementById("pipeline-dpk-outlet").value;
+            let fProduk = document.getElementById("pipeline-dpk-produk").value;
+
+            // Variabel Penampung Data (Karena spreadsheet saat ini hanya Tabungan)
+            let tabStats = { totalOnProgress: 0, cashIn: 0, cashOut: 0, countIn: 0, countOut: 0, realisasi: 0, countTotal: 0 };
+            
+            let tableRowsHtml = "";
+            let dataIndex = 1;
+
+            // Mapping Kolom Berdasarkan Spreadsheet REKAP:
+            // B=1 (Outlet), C=2 (Nasabah), E=4 (Cash In/Out), F=5 (Nominal Pipeline), G=6 (Realisasi), H=7 (On Progress)
+            for(let r = 1; r < data.length; r++) {
+                let row = data[r];
+                if(row.length < 8) continue; 
+
+                let outlet = String(row[1] || "").trim();
+                let nasabah = String(row[2] || "").trim();
+                let statusCIO = String(row[4] || "").trim().toUpperCase(); // CASH IN / CASH OUT
+                let nominalPipeline = parseFloat(row[5]) || 0;
+                let nominalRealisasi = parseFloat(row[6]) || 0; // Kolom G
+                let onProgress = parseFloat(row[7]) || 0;       // Kolom H
+
+                if (fOutlet !== "ALL" && outlet !== fOutlet) continue;
+                
+                // Menjumlahkan Data Tabungan
+                tabStats.totalOnProgress += onProgress;
+                tabStats.realisasi += nominalRealisasi;
+                tabStats.countTotal++;
+
+                if (statusCIO === "CASH IN") {
+                    tabStats.cashIn += onProgress;
+                    tabStats.countIn++;
+                } else if (statusCIO === "CASH OUT") {
+                    tabStats.cashOut += onProgress;
+                    tabStats.countOut++;
+                }
+
+                tableRowsHtml += `
+                    <tr>
+                        <td>${dataIndex++}</td>
+                        <td>${outlet}</td>
+                        <td>${nasabah}</td>
+                        <td><span class="badge-cell ${statusCIO === 'CASH IN' ? 'green' : 'red'}">${statusCIO}</span></td>
+                        <td>Rp ${formatM(nominalPipeline / 1e9)}</td>
+                        <td>Rp ${formatM(nominalRealisasi / 1e9)}</td>
+                        <td><b>Rp ${formatM(onProgress / 1e9)}</b></td>
+                    </tr>
+                `;
+            }
+
+            // 1. RENDER KPI CARDS
+            let cardsHtml = "";
+            if (fProduk === "ALL" || fProduk === "TABUNGAN") {
+                cardsHtml += `
+                    <div class="kpi-card" style="border-left-color: var(--success-green);">
+                        <div class="kpi-header">PIPELINE TABUNGAN</div>
+                        <h2 class="kpi-main-val">Rp ${formatM(tabStats.totalOnProgress / 1e9)}</h2>
+                        <div class="kpi-sub-val" style="margin-bottom:10px;">Total Kolom On Progress</div>
+                    </div>
+                `;
+            }
+            if (fProduk === "ALL" || fProduk === "GIRO") {
+                cardsHtml += `
+                    <div class="kpi-card" style="border-left-color: var(--primary-blue);">
+                        <div class="kpi-header">PIPELINE GIRO</div>
+                        <h2 class="kpi-main-val">Rp 0,00 M</h2>
+                        <div class="kpi-sub-val" style="margin-bottom:10px;">Total Kolom On Progress</div>
+                    </div>
+                `;
+            }
+            document.getElementById("pipeline-dpk-cards-row").innerHTML = cardsHtml;
+
+            // 2. RENDER PIPELINE AKTIF (PROGRESS BARS)
+            let activeHtml = "";
+            if (fProduk === "ALL" || fProduk === "TABUNGAN") {
+                let maxVal = Math.max(tabStats.cashIn, tabStats.cashOut);
+                let pctIn = maxVal > 0 ? (tabStats.cashIn / maxVal) * 100 : 0;
+                let pctOut = maxVal > 0 ? (tabStats.cashOut / maxVal) * 100 : 0;
+                
+                activeHtml += `
+                    <div class="section-subtitle">Rincian Pipeline Aktif - Tabungan</div>
+                    <div class="table-card" style="margin-bottom: 25px;">
+                        <div style="padding: 15px 20px; font-size:12px; color:var(--text-muted); border-bottom:1px solid var(--border-color);">
+                            Total On Progress • Rp ${formatM(tabStats.totalOnProgress / 1e9)}
+                        </div>
+                        <div style="padding: 20px;">
+                            <div style="display:flex; align-items:center; margin-bottom:12px; gap:15px; font-size:13px;">
+                                <div style="width:120px; font-weight:700;">CASH IN</div>
+                                <div style="flex:1; background:#f1f5f9; height:22px; border-radius:4px; overflow:hidden;">
+                                    <div style="width:${Math.max(5, pctIn)}%; background:#10b981; height:100%;"></div>
+                                </div>
+                                <div style="width:40px; text-align:right; font-weight:700;">${tabStats.countIn}</div>
+                                <div style="width:100px; text-align:right; color:var(--text-muted);">Rp ${formatM(tabStats.cashIn / 1e9)}</div>
+                            </div>
+                            <div style="display:flex; align-items:center; gap:15px; font-size:13px;">
+                                <div style="width:120px; font-weight:700;">CASH OUT</div>
+                                <div style="flex:1; background:#f1f5f9; height:22px; border-radius:4px; overflow:hidden;">
+                                    <div style="width:${Math.max(5, pctOut)}%; background:#ef4444; height:100%;"></div>
+                                </div>
+                                <div style="width:40px; text-align:right; font-weight:700;">${tabStats.countOut}</div>
+                                <div style="width:100px; text-align:right; color:var(--text-muted);">Rp ${formatM(tabStats.cashOut / 1e9)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Animasi Placeholder untuk Giro
+            if (fProduk === "ALL" || fProduk === "GIRO") {
+                activeHtml += `
+                    <div class="section-subtitle">Rincian Pipeline Aktif - Giro</div>
+                    <div class="table-card" style="margin-bottom: 25px;">
+                        <div style="padding: 40px; text-align:center; color:var(--text-muted);">
+                            <div style="font-size: 32px; margin-bottom: 10px; animation: spin 4s linear infinite;">⚙️</div>
+                            <h3 style="color: var(--bg-sidebar); margin-bottom: 5px;">Under Maintenance</h3>
+                            <p style="font-size: 13px;">Data Giro segera tersedia.</p>
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById("pipeline-dpk-active-container").innerHTML = activeHtml;
+
+            // 3. RENDER REALISASI (KOLOM G)
+            let realisasiHtml = "";
+            if (fProduk === "ALL" || fProduk === "TABUNGAN") {
+                realisasiHtml += `
+                    <div style="display:flex; align-items:center; margin-bottom:12px; gap:15px; font-size:13px;">
+                        <div style="width:120px; font-weight:700;">TABUNGAN</div>
+                        <div style="flex:1; background:#f1f5f9; height:22px; border-radius:4px; overflow:hidden;">
+                            <div style="width:100%; background:#0ea5e9; height:100%;"></div>
+                        </div>
+                        <div style="width:100px; text-align:right; font-weight:700;">Rp ${formatM(tabStats.realisasi / 1e9)}</div>
+                    </div>
+                `;
+            }
+            if (fProduk === "ALL" || fProduk === "GIRO") {
+                realisasiHtml += `
+                    <div style="display:flex; align-items:center; margin-bottom:12px; gap:15px; font-size:13px;">
+                        <div style="width:120px; font-weight:700;">GIRO</div>
+                        <div style="flex:1; background:#f1f5f9; height:22px; border-radius:4px; overflow:hidden;">
+                            <div style="width:5%; background:#cbd5e1; height:100%;"></div>
+                        </div>
+                        <div style="width:100px; text-align:right; font-weight:700; color:var(--text-muted);">Rp 0,00 M</div>
+                    </div>
+                `;
+            }
+            document.getElementById("pipeline-dpk-realisasi-bars").innerHTML = realisasiHtml;
+            document.getElementById("pipeline-dpk-realisasi-summary").innerText = `Total Realisasi Pipeline DPK • Rp ${formatM(tabStats.realisasi / 1e9)}`;
+
+            // 4. RENDER TABEL BAWAH
+            let tbody = document.getElementById("pipeline-dpk-table-body");
+            if(tbody) tbody.innerHTML = tableRowsHtml || `<tr><td colspan="7" style="text-align:center; padding:15px;">Tidak ada data yang sesuai filter.</td></tr>`;
+            document.getElementById("pipeline-dpk-table-count").innerText = `${tabStats.countTotal} baris data ditemukan`;
+            document.getElementById("pipeline-update-date").innerText = "Update Data: " + new Date().toLocaleDateString('id-ID');
         }
 
     </script>
