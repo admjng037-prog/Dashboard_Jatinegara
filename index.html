@@ -272,8 +272,26 @@
                 <li class="menu-item" onclick="switchMenu('KONSUMER', this)">
                     <span class="icon">💳</span> Dashboard Konsumer
                 </li>
+                <li class="menu-item" style="padding-left: 45px; font-size: 13px;" onclick="switchMenu('KONSUMER_FLEKSI', this)">
+                    <span class="icon" style="font-size: 11px;">▪</span> Detail Fleksi
+                </li>
+                <li class="menu-item" style="padding-left: 45px; font-size: 13px;" onclick="switchMenu('KONSUMER_GRIYA', this)">
+                    <span class="icon" style="font-size: 11px;">▪</span> Detail Griya
+                </li>
+                <li class="menu-item" style="padding-left: 45px; font-size: 13px;" onclick="switchMenu('KONSUMER_INSTAN', this)">
+                    <span class="icon" style="font-size: 11px;">▪</span> Detail Instan
+                </li>
                 <li class="menu-item" onclick="switchMenu('PRODUKTIF', this)">
                     <span class="icon">🏭</span> Dashboard Produktif
+                </li>
+                <li class="menu-item" style="padding-left: 45px; font-size: 13px;" onclick="switchMenu('PRODUKTIF_KUR', this)">
+                    <span class="icon" style="font-size: 11px;">▪</span> Detail KUR
+                </li>
+                <li class="menu-item" style="padding-left: 45px; font-size: 13px;" onclick="switchMenu('PRODUKTIF_BWU', this)">
+                    <span class="icon" style="font-size: 11px;">▪</span> Detail BWU
+                </li>
+                <li class="menu-item" style="padding-left: 45px; font-size: 13px;" onclick="switchMenu('PRODUKTIF_BCM', this)">
+                    <span class="icon" style="font-size: 11px;">▪</span> Detail BCM
                 </li>
             </ul>
 
@@ -372,11 +390,41 @@
                 chartLabels: ["FLEKSI", "GRIYA", "INSTAN"],
                 type: "standard"
             },
+            "KONSUMER_FLEKSI": {
+                title: "Detail Rebound - Fleksi",
+                products: ["Fleksi"],
+                type: "dpk_detail"
+            },
+            "KONSUMER_GRIYA": {
+                title: "Detail Rebound - Griya",
+                products: ["Griya"],
+                type: "dpk_detail"
+            },
+            "KONSUMER_INSTAN": {
+                title: "Detail Rebound - Instan",
+                products: ["Instan"],
+                type: "dpk_detail"
+            },
             "PRODUKTIF": {
                 title: "Dashboard Kredit Produktif",
                 products: ["Total Produktif", "KUR", "BWU", "BCM"],
                 chartLabels: ["KUR", "BWU", "BCM"],
                 type: "standard"
+            },
+            "PRODUKTIF_KUR": {
+                title: "Detail Rebound - KUR",
+                products: ["KUR"],
+                type: "dpk_detail"
+            },
+            "PRODUKTIF_BWU": {
+                title: "Detail Rebound - BWU",
+                products: ["BWU"],
+                type: "dpk_detail"
+            },
+            "PRODUKTIF_BCM": {
+                title: "Detail Rebound - BCM",
+                products: ["BCM"],
+                type: "dpk_detail"
             },
             "PERFORMANCE_SALES": {
                 title: "Performance KPI Sales",
@@ -758,14 +806,13 @@
                             <table class="kpi-table" id="pipeline-detail-table">
                                 <thead>
                                     <tr>
-                                        <th>BULAN ↕</th>
+                                        <th>TANGGAL INPUT ↕</th>
                                         <th>TIPE ↕</th>
                                         <th>SALES ↕</th>
                                         <th>PRODUK ↕</th>
                                         <th>DEBITUR ↕</th>
                                         <th>INSTANSI ↕</th>
                                         <th>OUTLET ↕</th>
-                                        <th>PLAFON ↕</th>
                                         <th>BAKI DEBET ↕</th>
                                         <th>PROGRESS ↕</th>
                                     </tr>
@@ -1105,8 +1152,11 @@
         };
 
         function renderDpkDetailFiltersAndDashboard() {
-            let D_REAL = RAW.realisasi;
-            let D_TARG = RAW.target;
+            // Gunakan data source sesuai menu yang aktif
+            let D_REAL = CURRENT_MENU.startsWith("KONSUMER_") ? RAW.realisasi_kons : 
+                         (CURRENT_MENU.startsWith("PRODUKTIF_") ? RAW.realisasi_prod : RAW.realisasi);
+            let D_TARG = CURRENT_MENU.startsWith("KONSUMER_") ? RAW.target_kons : 
+                         (CURRENT_MENU.startsWith("PRODUKTIF_") ? RAW.target_prod : RAW.target);
             if(!D_REAL || !D_TARG) return;
 
             let colReal = D_REAL[1], colTarget = D_TARG[1];
@@ -1157,7 +1207,11 @@
             let selDateEl = document.getElementById("date-select");
             if (!selTargetEl || !selDateEl || !selTargetEl.value || !selDateEl.value) return;
 
-            let D_REAL = RAW.realisasi, D_TARG = RAW.target;
+            // Gunakan data source sesuai menu yang aktif
+            let D_REAL = CURRENT_MENU.startsWith("KONSUMER_") ? RAW.realisasi_kons : 
+                         (CURRENT_MENU.startsWith("PRODUKTIF_") ? RAW.realisasi_prod : RAW.realisasi);
+            let D_TARG = CURRENT_MENU.startsWith("KONSUMER_") ? RAW.target_kons : 
+                         (CURRENT_MENU.startsWith("PRODUKTIF_") ? RAW.target_prod : RAW.target);
             if(!D_REAL || !D_TARG) return;
 
             const sOutlet = document.getElementById("outlet-select").value;
@@ -2208,7 +2262,6 @@
                             <td>${namaDebitur}</td>
                             <td>${namaInstansi}</td>
                             <td>${outlet}</td>
-                            <td>${formattedNominal}</td>
                             <td>${formattedNominal}</td>
                             <td><span class="badge-cell ${badgeClass}" style="font-size: 11px; padding: 4px 8px;">${statusRaw}</span></td>
                         </tr>
