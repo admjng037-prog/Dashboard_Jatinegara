@@ -1531,6 +1531,92 @@
                     sTprop = getTargetVal(D_TARG, prodName, sOutlet, sTargIdx);
                     sTfy = getTargetVal(D_TARG, prodName, sOutlet, tfyIdx);
                 }
+				// ======== MENGHITUNG TOTAL PIPELINE ========
+                let sPipeline = 0;
+                
+                // --- Logika untuk Dashboard Konsumer & Produktif ---
+                if (CURRENT_MENU === "KONSUMER" || CURRENT_MENU === "PRODUKTIF") {
+                    let pipelineData = CURRENT_MENU === "KONSUMER" ? RAW.pipeline_konsumer : RAW.pipeline_produktif;
+                    if (pipelineData && pipelineData.length > 1) {
+                        let sOutletCode = sOutlet === "ALL" ? "ALL" : sOutlet.substring(0, 2);
+                        let children = isTotalCard ? 
+                            (CURRENT_MENU === "KONSUMER" ? ["Fleksi", "Griya", "Instan"] : ["KUR", "BWU", "BCM"]) : 
+                            [prodName];
+                        
+                        for (let r = 1; r < pipelineData.length; r++) {
+                            let row = pipelineData[r];
+                            if (row.length < 11) continue; 
+                            
+                            let pOutletCode = String(row[1] || "").trim().substring(0, 2);
+                            let pProduk = String(row[4] || "").trim().toUpperCase();
+                            let pNominal = parseFloat(row[6]) || 0;
+                            let pStatus = String(row[10] || "").trim().toUpperCase();
+                            
+                            const validActiveStatus = ["AKAD BELUM BOOKING", "PENDING AKAD", "APPROVED", "PROSES APPROVED", "PROSES ANALIS", "COLLECT DATA"];
+                            
+                            if (validActiveStatus.includes(pStatus) && (sOutletCode === "ALL" || sOutletCode === pOutletCode)) {
+                                children.forEach(child => {
+                                    if (pProduk.includes(child.toUpperCase())) sPipeline += pNominal;
+                                });
+                            }
+                        }
+                    }
+                } 
+                // --- Logika Khusus untuk Dashboard DPK ---
+                else if (CURRENT_MENU === "DPK") {
+                    let dpkData = RAW.pipeline_dpk;
+                    if (dpkData && dpkData.length > 1) {
+                        let sOutletCode = sOutlet === "ALL" ? "ALL" : sOutlet.substring(0, 2);
+                        let cashIn = 0;
+                        let cashOut = 0;
+
+                        // Looping data Pipeline DPK
+                        for (let r = 1; r < dpkData.length; r++) {
+                            let row = dpkData[r];
+                            if (row.length < 8) continue;
+
+                            let pOutletCode = String(row[1] || "").trim().substring(0, 2);
+                            let pCIO = String(row[4] || "").trim().toUpperCase(); // Kolom E (CASH IN/OUT)
+                            let pProgress = parseFloat(row[7]) || 0; // Kolom H (On Progress)
+
+                            if (sOutletCode === "ALL" || sOutletCode === pOutletCode) {
+                                if (pCIO === "CASH IN") cashIn += pProgress;
+                                else if (pCIO === "CASH OUT") cashOut += pProgress;
+                            }
+                        }
+
+                        // Set nilai sPipeline = (CASH IN - CASH OUT)
+                        // Atur kondisi: jika card adalah "Tabungan All" maka ambil nilai Nett Tabungan
+                        if (prodName === "Tabungan All") {
+                            sPipeline = cashIn - cashOut; // Asumsi saat ini data Pipeline DPK hanya Tabungan
+                        } else if (prodName === "Giro") {
+                            sPipeline = 0; // Set 0 sementara karena data Giro Under Maintenance
+                        } else if (prodName === "Total DPK") {
+                            sPipeline = cashIn - cashOut; // Total DPK otomatis menghitung Nett keseluruhan
+                        }
+                    }
+                }
+                
+                // Terapkan nilai Pipeline ke dalam DOM (Kartu)
+                let pId = `pipeline-card-${idx}`;
+                let pEl = document.getElementById(pId);
+                
+                let proyId = `proyeksi-card-${idx}`;
+                let proyEl = document.getElementById(proyId);
+
+                // Sembunyikan baris Pipeline & Proyeksi untuk produk DPK selain Total, Tabungan All & Giro
+                let divPipeline = pEl ? pEl.parentElement : null;
+                let divProyeksi = proyEl ? proyEl.parentElement : null;
+
+                if (CURRENT_MENU === "DPK" && !["Total DPK", "Tabungan All", "Giro"].includes(prodName)) {
+                    if (divPipeline) divPipeline.style.display = 'none';
+                    if (divProyeksi) divProyeksi.style.display = 'none';
+                } else {
+                    if (pEl) pEl.innerText = formatM(sPipeline / 1e9);
+                    // ======== MENGHITUNG PROYEKSI (REALISASI + PIPELINE) ========
+                    if (proyEl) proyEl.innerText = formatM((sReal + sPipeline) / 1e9);
+                }
+                // ============================================
 
                 let rM = sReal / 1e9, tM = sTprop / 1e9, fM = sTfy / 1e9, dM = sDes25 / 1e9;
                 productMetrics[prodName] = { rM, tM, fM, dM };
@@ -1884,6 +1970,8 @@
                             <div class="detail-row"><span>GAP FY</span><span id="gapfy-card-${i}">0,00 M</span></div>
                             <div class="detail-row"><span>31 Des 2025</span><span id="des25-card-${i}">0,00 M</span></div>
                             <div class="detail-row"><span>GAP Reborn</span><span id="gapreborn-card-${i}">0,00 M</span></div>
+                            <div class="detail-row" style="margin-top: 4px; padding-top: 6px; border-top: 1px dashed #cbd5e1; color: var(--primary-blue);"><span>Total Pipeline</span><span id="pipeline-card-${i}" style="font-weight: 800;">0,00 M</span></div>
+                            <div class="detail-row" style="color: var(--success-green);"><span>Proyeksi</span><span id="proyeksi-card-${i}" style="font-weight: 800;">0,00 M</span></div>
                         </div>
                     </div>`;
             });
