@@ -348,7 +348,8 @@
         let activeChart = null;
         let gaugeChart = null;
         let distributionChart = null;
-        let bookingTrendChart = null;
+		let bookingKonsumerChart = null;
+        let bookingSbpChart = null;
         let inactivityTimer = null;
         let tableSortCol = null;
         let tableSortAsc = true;
@@ -1045,10 +1046,18 @@
                         </div>
                     </div>
 
-                    <div class="chart-card">
-                        <div class="chart-header">Tren Booking per Bulan</div>
-                        <div class="chart-container">
-                            <canvas id="bookingTrendChart"></canvas>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                        <div class="chart-card" style="margin-bottom: 0;">
+                            <div class="chart-header">Tren Booking Konsumer per Bulan</div>
+                            <div class="chart-container">
+                                <canvas id="bookingKonsumerChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="chart-card" style="margin-bottom: 0;">
+                            <div class="chart-header">Tren Booking SBP per Bulan</div>
+                            <div class="chart-container">
+                                <canvas id="bookingSbpChart"></canvas>
+                            </div>
                         </div>
                     </div>
 
@@ -1992,7 +2001,8 @@
             }
 
             let sumKonsumer = sumFleksi + sumGriya;
-            let grandTotal = sumKonsumer + sumKur + sumBwu + sumSbp;
+			sumSbp = sumKur + sumBwu;
+            let grandTotal = sumKonsumer + sumSbp;
 
             document.getElementById("val-book-fleksi").innerText = formatM(sumFleksi / 1e9);
             document.getElementById("val-book-griya").innerText = formatM(sumGriya / 1e9);
@@ -2004,56 +2014,92 @@
             document.getElementById("book-update-date").innerText = "Update Data: " + new Date().toLocaleDateString('id-ID');
 
             // Trend chart
-            let monthlyTrendData = [];
+            // Memisahkan Data Tren Konsumer dan SBP
+            let monthlyKonsumerData = [];
+            let monthlySbpData = [];
+
             monthCols.forEach(m => {
-                let mSum = salesArray.reduce((acc, s) => acc + (s.months[m.name] || 0), 0);
-                monthlyTrendData.push(mSum / 1e9);
+                let sumKons = 0;
+                let sumSbp = 0;
+                
+                salesArray.forEach(s => {
+                    let p = s.produk.toUpperCase();
+                    let val = s.months[m.name] || 0;
+                    if(p.includes("FLEKSI") || p.includes("GRIYA") || p.includes("KONSUMER")) {
+                        sumKons += val;
+                    }
+                    if(p.includes("KUR") || p.includes("BWU") || p.includes("SBP") || p.includes("PRODUKTIF")) {
+                        sumSbp += val;
+                    }
+                });
+                
+                monthlyKonsumerData.push(sumKons / 1e9);
+                monthlySbpData.push(sumSbp / 1e9);
             });
 
-            if(bookingTrendChart) bookingTrendChart.destroy();
-            let canvasElement = document.getElementById('bookingTrendChart');
-            if (canvasElement) {
-                bookingTrendChart = new Chart(canvasElement.getContext('2d'), {
+            // Pengaturan Umum untuk Grafik
+            let chartOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Rp ' + context.parsed.y.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#e2e8f0', drawBorder: false },
+                        ticks: { callback: function(value) { return value + ' M'; } }
+                    },
+                    x: { grid: { display: false, drawBorder: false } }
+                }
+            };
+
+            // Render Chart Konsumer (Warna Hijau)
+            if(bookingKonsumerChart) bookingKonsumerChart.destroy();
+            let canvasKonsumer = document.getElementById('bookingKonsumerChart');
+            if (canvasKonsumer) {
+                bookingKonsumerChart = new Chart(canvasKonsumer.getContext('2d'), {
                     type: 'line',
                     data: {
                         labels: monthCols.map(m => m.name),
                         datasets: [{
-                            label: 'Total Booking',
-                            data: monthlyTrendData,
-                            borderColor: '#0ea5e9',
-                            backgroundColor: 'rgba(14, 165, 233, 0.1)',
-                            borderWidth: 3,
-                            pointBackgroundColor: '#0ea5e9',
-                            pointBorderColor: '#ffffff',
-                            pointBorderWidth: 2,
-                            pointRadius: 5,
-                            pointHoverRadius: 7,
-                            fill: true,
-                            tension: 0.3
+                            label: 'Booking Konsumer',
+                            data: monthlyKonsumerData,
+                            borderColor: '#10b981', 
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderWidth: 3, pointBackgroundColor: '#10b981', pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 7, fill: true, tension: 0.3
                         }]
                     },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: function(context) {
-                                        return 'Rp ' + context.parsed.y.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M';
-                                    }
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                grid: { color: '#e2e8f0', drawBorder: false },
-                                ticks: { callback: function(value) { return value + ' M'; } }
-                            },
-                            x: { grid: { display: false, drawBorder: false } }
-                        }
-                    }
+                    options: chartOptions
+                });
+            }
+
+            // Render Chart SBP (Warna Kuning/Orange)
+            if(bookingSbpChart) bookingSbpChart.destroy();
+            let canvasSbp = document.getElementById('bookingSbpChart');
+            if (canvasSbp) {
+                bookingSbpChart = new Chart(canvasSbp.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: monthCols.map(m => m.name),
+                        datasets: [{
+                            label: 'Booking SBP',
+                            data: monthlySbpData,
+                            borderColor: '#f59e0b', 
+                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                            borderWidth: 3, pointBackgroundColor: '#f59e0b', pointBorderColor: '#ffffff',
+                            pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 7, fill: true, tension: 0.3
+                        }]
+                    },
+                    options: chartOptions
                 });
             }
 
