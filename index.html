@@ -819,6 +819,11 @@
                         <label>NAMA SALES</label>
                         <select id="pipeline-namasales" onchange="renderPipelineDashboard()"><option value="ALL">Semua Sales</option></select>
                     </div>
+                    <!-- TAMBAHAN DROPDOWN PROGRESS PIPELINE -->
+                    <div class="filter-group">
+                        <label>PROGRESS PIPELINE</label>
+                        <select id="pipeline-progress" onchange="renderPipelineDashboard()"><option value="ALL">Semua Progress</option></select>
+                    </div>
                     <div class="update-data-badge" id="pipeline-update-date">Update Data: Hari ini</div>
                     <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
                 `;
@@ -2313,6 +2318,7 @@
             let outlets = new Set();
             let tipeSales = new Set();
             let namaSales = new Set();
+            let progressList = new Set(); // Set penampung status progress
 
             for(let r = 1; r < pipelineData.length; r++) {
                 let row = pipelineData[r];
@@ -2321,20 +2327,28 @@
                     if(row[2]) tipeSales.add(String(row[2]).trim());
                     if(row[3]) namaSales.add(String(row[3]).trim());
                 }
+                // Ambil data progress dari kolom 10 (Kolom K spreadsheet / Index ke-10 array)
+                if(row.length > 10 && row[10]) {
+                    progressList.add(String(row[10]).trim().toUpperCase());
+                }
             }
 
             const selOutl = document.getElementById("pipeline-outlet");
             const selType = document.getElementById("pipeline-typesales");
             const selNama = document.getElementById("pipeline-namasales");
+            const selProgress = document.getElementById("pipeline-progress"); // Elemen Select Progress
             
             // Reset Dropdown
             if(selOutl) selOutl.options.length = 1; 
             if(selType) selType.options.length = 1; 
             if(selNama) selNama.options.length = 1; 
+            if(selProgress) selProgress.options.length = 1;
 
             if(selOutl) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
             if(selType) Array.from(tipeSales).sort().forEach(t => selType.add(new Option(t, t)));
             if(selNama) Array.from(namaSales).sort().forEach(n => selNama.add(new Option(n, n)));
+            // Masukkan opsi progress ke dropdown select
+            if(selProgress) Array.from(progressList).sort().forEach(p => selProgress.add(new Option(p, p)));
 
             renderPipelineDashboard();
         }
@@ -2350,6 +2364,7 @@
             const fOutlet = document.getElementById("pipeline-outlet").value;
             const fType = document.getElementById("pipeline-typesales").value;
             const fNama = document.getElementById("pipeline-namasales").value;
+            const fProgress = document.getElementById("pipeline-progress").value; // Ambil nilai dropdown Progress
 
             let targetProducts = CURRENT_MENU === "PIPELINE_KONSUMER" ? ["Fleksi", "Griya"] : ["KUR", "BWU"];
             let menuLabel = CURRENT_MENU === "PIPELINE_KONSUMER" ? "KONSUMER" : "PRODUKTIF";
@@ -2406,6 +2421,7 @@
                 
                 if(fType !== "ALL" && tipeSales !== fType) continue;
                 if(fNama !== "ALL" && namaSales !== fNama) continue;
+				if(fProgress !== "ALL" && statusRaw !== fProgress) continue;
 
                 let matchedProd = targetProducts.find(p => produk.toUpperCase().includes(p.toUpperCase()));
                 if(matchedProd) {
