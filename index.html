@@ -1573,26 +1573,33 @@
                         // Looping data Pipeline DPK
                         for (let r = 1; r < dpkData.length; r++) {
                             let row = dpkData[r];
-                            if (row.length < 8) continue;
+                            
+                            // Pastikan baris memiliki data minimal sampai kolom H (index 7)
+                            if (row.length < 8) continue; 
 
                             let pOutletCode = String(row[1] || "").trim().substring(0, 2);
-                            let pCIO = String(row[4] || "").trim().toUpperCase(); // Kolom E (CASH IN/OUT)
-                            let pProgress = parseFloat(row[7]) || 0; // Kolom H (On Progress)
+                            
+                            // 1. Ambil parameter CASH IN / CASH OUT dari Kolom E (Index ke-4)
+                            let pCIO = String(row[4] || "").trim().toUpperCase(); 
+                            
+                            // 2. Ambil nominal dari Kolom H (On Progress) (Index ke-7)
+                            let pProgress = parseFloat(row[7]) || 0; 
 
+                            // Filter berdasarkan outlet yang dipilih di dropdown
                             if (sOutletCode === "ALL" || sOutletCode === pOutletCode) {
-                                if (pCIO === "CASH IN") cashIn += pProgress;
-                                else if (pCIO === "CASH OUT") cashOut += pProgress;
+                                if (pCIO === "CASH IN") {
+                                    cashIn += pProgress;
+                                } else if (pCIO === "CASH OUT") {
+                                    cashOut += pProgress;
+                                }
                             }
                         }
 
-                        // Set nilai sPipeline = (CASH IN - CASH OUT)
-                        // Atur kondisi: jika card adalah "Tabungan All" maka ambil nilai Nett Tabungan
-                        if (prodName === "Tabungan All") {
-                            sPipeline = cashIn - cashOut; // Asumsi saat ini data Pipeline DPK hanya Tabungan
+                        // 3. Perhitungan Nett: CASH IN dikurangi CASH OUT
+                        if (prodName === "Tabungan All" || prodName === "Total DPK") {
+                            sPipeline = cashIn - cashOut; 
                         } else if (prodName === "Giro") {
-                            sPipeline = 0; // Set 0 sementara karena data Giro Under Maintenance
-                        } else if (prodName === "Total DPK") {
-                            sPipeline = cashIn - cashOut; // Total DPK otomatis menghitung Nett keseluruhan
+                            sPipeline = 0; // Set 0 sementara (jika belum ada filter khusus Giro di spreadsheet)
                         }
                     }
                 }
@@ -2626,8 +2633,7 @@
 
                 if (fOutlet !== "ALL" && outlet !== fOutlet) continue;
                 
-                // Menjumlahkan Data Tabungan
-                tabStats.totalOnProgress += onProgress;
+                // Menjumlahkan Data Tabungan (Nett akan dihitung dari cashIn - cashOut di bawah)
                 tabStats.realisasi += nominalRealisasi;
                 tabStats.countTotal++;
 
@@ -2652,6 +2658,9 @@
                 `;
             }
 
+            // --- HITUNG NILAI NETT UNTUK PIPELINE TABUNGAN ---
+            tabStats.totalOnProgress = tabStats.cashIn - tabStats.cashOut;
+
             // 1. RENDER KPI CARDS
             let cardsHtml = "";
             if (fProduk === "ALL" || fProduk === "TABUNGAN") {
@@ -2659,7 +2668,7 @@
                     <div class="kpi-card" style="border-left-color: var(--success-green);">
                         <div class="kpi-header">PIPELINE TABUNGAN</div>
                         <h2 class="kpi-main-val">Rp ${formatM(tabStats.totalOnProgress / 1e9)}</h2>
-                        <div class="kpi-sub-val" style="margin-bottom:10px;">Total Kolom On Progress</div>
+                        <div class="kpi-sub-val" style="margin-bottom:10px;">Total Nett (CASH IN - CASH OUT)</div>
                     </div>
                 `;
             }
@@ -2685,7 +2694,7 @@
                     <div class="section-subtitle">Rincian Pipeline Aktif - Tabungan</div>
                     <div class="table-card" style="margin-bottom: 25px;">
                         <div style="padding: 15px 20px; font-size:12px; color:var(--text-muted); border-bottom:1px solid var(--border-color);">
-                            Total On Progress • Rp ${formatM(tabStats.totalOnProgress / 1e9)}
+                            Nett On Progress (Cash In - Cash Out) • Rp ${formatM(tabStats.totalOnProgress / 1e9)}
                         </div>
                         <div style="padding: 20px;">
                             <div style="display:flex; align-items:center; margin-bottom:12px; gap:15px; font-size:13px;">
