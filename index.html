@@ -201,6 +201,17 @@
             overflow: visible !important;
             max-height: none !important;
         }
+		/* --- PMS TABLE STYLES --- */
+        .pms-responsive { max-height: 70vh; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border-color); border-radius: 8px; }
+        .pms-table { width: max-content; border-collapse: separate; border-spacing: 0; font-size: 11px; }
+        .pms-table th, .pms-table td { border-right: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; text-align: center; padding: 10px 12px; }
+        .pms-table th { position: sticky; top: 0; z-index: 10; font-weight: 700; }
+        .pms-table th.sticky-col, .pms-table td.sticky-col { position: sticky; left: 0; z-index: 11; background: #fff; text-align: left; font-weight: 800; box-shadow: 2px 0 5px rgba(0,0,0,0.05); border-right: 2px solid #94a3b8; }
+        .pms-table thead tr:first-child th { top: 0; border-top: 1px solid #cbd5e1; z-index: 12; letter-spacing: 0.5px; }
+        .pms-table thead tr:first-child th.sticky-col { z-index: 13; background: #0f172a; color: white; border-right: 2px solid #0f172a; }
+        .pms-table thead tr:nth-child(2) th { top: 37px; z-index: 10; background: #f8fafc; color: var(--text-main); font-size: 10px; }
+        .pms-table tbody tr:hover td { opacity: 0.85; cursor: default; }
+        .heatmap-cell { font-weight: 800; text-shadow: 0px 0px 1px rgba(255,255,255,0.3); }
     </style>
 </head>
 <body>
@@ -253,6 +264,12 @@
                 <button class="hamburger-btn" onclick="toggleSidebar()" style="font-size: 18px; display: none;" id="close-sidebar-btn">✕</button>
             </div>
             
+			<div class="menu-category">Menu Utama</div>
+            <ul class="menu-list">
+                <li class="menu-item" onclick="switchMenu('SCORE_PMS', this)">
+                    <span class="icon">🏆</span> Score PMS
+                </li>
+            </ul>
             <div class="menu-category">Dana & Kredit</div>
             <ul class="menu-list">
                 <li class="menu-item active" onclick="switchMenu('DPK', this)">
@@ -364,6 +381,10 @@
         let globalBookingSalesArray = []; // Variabel global untuk menampung data booking sebelum difilter
 
         const CONFIG = {
+            "SCORE_PMS": {
+                title: "Score PMS Cabang",
+                type: "pms"
+            },
             "DPK": {
                 title: "Dashboard DPK Cabang",
                 products: ["Total DPK", "Tabungan All", "Tabungan exc. WEM Private", "Tabungan WEM Private", "Giro", "Deposito"],
@@ -686,7 +707,77 @@
 
                 renderStandardFiltersAndDashboard();
 
-            } 
+            }
+			else if(cfg.type === "pms") {
+                filterArea.innerHTML = `
+                    <div class="filter-group">
+                        <label>PERIODE UPDATE</label>
+                        <select id="pms-period"><option value="ALL">Data Terbaru (30/09/2026)</option></select>
+                    </div>
+                    <div class="update-data-badge" id="pms-update-date">Berdasarkan data sheet PMS</div>
+                    <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
+                `;
+
+                contentArea.innerHTML = `
+                    <div class="section-subtitle">Matriks Data Skor PMS Cabang</div>
+                    <div class="table-card" style="padding: 10px;">
+                        <div class="table-responsive pms-responsive">
+                            <table class="kpi-table pms-table" id="pms-table">
+                                <thead id="pms-table-head">
+                                    <tr>
+                                        <th rowspan="2" class="sticky-col">Nama Cabang</th>
+                                        <!-- Ubah colspan menjadi 3 untuk Profitabilitas -->
+                                        <th colspan="3" style="background-color: #22c55e; color: #064e3b;">Profitabilitas</th>
+                                        <th colspan="4" style="background-color: #f97316; color: #fff;">AVG DPK</th>
+                                        <th colspan="2" style="background-color: #eab308; color: #713f12;">KREDIT</th>
+                                        <th rowspan="2" style="background-color: #0284c7; color: #fff; padding: 0 15px;">KUALI<br>TAS</th>
+                                        <th colspan="2" style="background-color: #d97706; color: #fff;">MARKET SHARE</th>
+                                        <th rowspan="2" style="background-color: #0ea5e9; color: #fff; padding: 0 15px;">SEI</th>
+                                        <th colspan="7" style="background-color: #6366f1; color: #fff;">Akuisisi, User Aktif, Volume dan Jumlah Transaksi</th>
+                                        <th colspan="2" style="background-color: #84cc16; color: #3f6212;">Eksekusi Value Chain,<br>Ekosistem, & POI</th>
+                                        <th colspan="2" style="background-color: #10b981; color: #064e3b;">People</th>
+                                        <th rowspan="2" style="background-color: #0ea5e9; color: #fff;">Total Skor<br>PMS</th>
+                                        <th rowspan="2" style="background-color: #0f172a; color: #fff;">RANK<br>WIL</th>
+                                    </tr>
+                                    <tr>
+                                        <th>PPOP<br>Bank<br>Wide</th>
+                                        <th>PPOP</th>
+                                        <!-- Tambahkan Kolom FBI -->
+                                        <th>FBI</th>
+                                        
+                                        <th>Volume<br>Rata-rata<br>Giro Non<br>SR</th>
+                                        <th>Volume<br>Rata-rata<br>Tabungan<br>Non SR</th>
+                                        <th>Volume<br>Rata-rata<br>CASA All</th>
+                                        <th>Volume<br>Rata-rata<br>Deposito<br>P Non SR</th>
+                                        
+                                        <th>Volume<br>Rata-rata<br>Kredit<br>Konsumer</th>
+                                        <th>Volume<br>Rata-rata<br>Kredit<br>Produktif</th>
+                                        
+                                        <th>Market<br>Share<br>Tabungan</th>
+                                        <th>Market<br>Share<br>Giro</th>
+                                        
+                                        <th>Akuisisi<br>New CIF<br>Tabungan<br>Berbayar</th>
+                                        <th>Debitur<br>Baru<br>Segmen<br>Kecil</th>
+                                        <th>Akuisisi<br>NTB &<br>ETB Kartu<br>Kredit</th>
+                                        <th>Jumlah<br>User<br>Aktif<br>Wondr</th>
+                                        <th>Jumlah<br>CIF<br>Operatin<br>g Account</th>
+                                        <th>Volume<br>GB &<br>Trade</th>
+                                        <th>Produktiv<br>itas<br>Merchant</th>
+                                        
+                                        <th>Eksekusi<br>Value<br>Chain,<br>Ekosiste<br>m, & POI</th>
+                                        <th>Produktiv<br>itas RM<br>dan Sales</th>
+                                        
+                                        <th>Earning<br>per<br>Employee</th>
+                                        <th>People<br>Develop<br>ment</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pms-table-body"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+                renderPMSDashboard();
+            }
             else if(cfg.type === "dpk_detail") {
                 filterArea.innerHTML = `
                     <div class="filter-group"><label>OUTLET</label><select id="outlet-select" onchange="renderDpkDetailDashboard()"><option value="ALL">Semua Cabang</option></select></div>
@@ -1211,7 +1302,91 @@
                 ctx.restore();
             }
         };
+		
+		function renderPMSDashboard() {
+            let pmsData = RAW.pms;
+            
+            if (!pmsData || pmsData.length <= 1) {
+                document.getElementById("pms-table-body").innerHTML = `<tr><td colspan="27" style="text-align:center; padding:20px; color:var(--text-muted);">Data Score PMS belum tersedia dari API. Pastikan App Script sudah di-deploy ke versi terbaru.</td></tr>`;
+                return;
+            }
 
+            // Skala Warna (Heat Map) Otomatis
+            function getHeatmapStyle(val) {
+                if (isNaN(val) || val === "") return 'background-color: #f8fafc; color: #cbd5e1;';
+                if (val >= 4.5) return 'background-color: #16a34a; color: #fff;';    // Hijau Tua (Sangat Baik)
+                if (val >= 3.5) return 'background-color: #86efac; color: #064e3b;'; // Hijau Muda (Baik)
+                if (val >= 2.5) return 'background-color: #fde047; color: #713f12;'; // Kuning (Cukup)
+                if (val >= 1.0) return 'background-color: #fb923c; color: #fff;';    // Oranye (Kurang)
+                return 'background-color: #ef4444; color: #fff;';                    // Merah (Sangat Kurang)
+            }
+
+            let tbodyHtml = "";
+            let dataDitemukan = false;
+            
+            // SESUAI KONFIRMASI: Nama Cabang ada di KOLOM B (Indeks 1)
+            let nameColIdx = 1; 
+            // SESUAI KONFIRMASI: Data dimulai dari PPOP Bank Wide di KOLOM E (Indeks 4)
+            let startCol = 4;
+            
+            // Mulai loop dari indeks ke-8 agar baris header dan bobot diabaikan
+            for (let r = 8; r < pmsData.length; r++) {
+                let row = pmsData[r];
+                if (!row) continue;
+                
+                // Ambil Nama Cabang (Kolom B / Indeks 1)
+                let namaCabang = String(row[nameColIdx] || "").trim();
+                
+                // Cek nilai pertama (Kolom E) untuk validasi baris
+                let checkVal = parseFloat(row[startCol]); 
+                
+                // FILTER BARIS: Abaikan jika kosong atau berisi teks header
+                if (!namaCabang || 
+                    isNaN(checkVal) || 
+                    namaCabang.toLowerCase().includes("nama cabang") || 
+                    namaCabang.toLowerCase().includes("bobot") ||
+                    namaCabang.toLowerCase().includes("update")) {
+                    continue;
+                }
+
+                dataDitemukan = true;
+                
+                // Render teks Nama Cabang
+                let rowHtml = `<tr><td class="sticky-col" style="font-weight:700;">${namaCabang}</td>`;
+                
+                // Total kolom data dari E sampai AD adalah 26 kolom (24 Heatmap, 1 Total Skor, 1 Rank)
+                let targetColCount = 26; 
+                
+                for (let i = 0; i < targetColCount; i++) {
+                    let colIdx = startCol + i; // Bergerak dari Kolom E (Indeks 4) ke kanan
+                    let valRaw = row[colIdx];
+                    let valNum = parseFloat(valRaw);
+                    let valToDisplay = isNaN(valNum) ? 0 : valNum;
+
+                    // Indeks loop ke-24 adalah Total Skor PMS (Kolom AC / Indeks 28)
+                    // Indeks loop ke-25 adalah RANK WIL (Kolom AD / Indeks 29)
+                    if (i === 24 || i === 25) {
+                         let rankStyle = (i === 25) ? 'font-weight:800; background-color:#f1f5f9; color:#0f172a;' : 'font-weight:700; background-color:#e0f2fe; color:#0369a1;';
+                         let displayStr = isNaN(valNum) ? "-" : (i === 25 ? valNum : valNum.toFixed(2).replace('.', ','));
+                         rowHtml += `<td style="${rankStyle}">${displayStr}</td>`;
+                    } else {
+                         // Indeks 0-23 (Kolom E - AB) menggunakan warna Heatmap
+                         let style = getHeatmapStyle(valToDisplay);
+                         rowHtml += `<td class="heatmap-cell" style="${style}">${valToDisplay.toFixed(2).replace('.', ',')}</td>`;
+                    }
+                }
+                
+                rowHtml += `</tr>`;
+                tbodyHtml += rowHtml;
+            }
+
+            if (!dataDitemukan) {
+               tbodyHtml = `<tr><td colspan="27" style="text-align:center; padding:20px; color:var(--text-muted);">Format data pada sheet "PMS" tidak sesuai atau kosong.</td></tr>`;
+            }
+
+            document.getElementById("pms-table-body").innerHTML = tbodyHtml;
+        }
+		
         function renderDpkDetailFiltersAndDashboard() {
             // Gunakan data source sesuai menu yang aktif
             let D_REAL = CURRENT_MENU.startsWith("KONSUMER_") ? RAW.realisasi_kons : 
