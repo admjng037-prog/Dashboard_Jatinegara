@@ -722,6 +722,12 @@
 			else if(cfg.type === "pms") {
                 filterArea.innerHTML = `
                     <div class="filter-group">
+                        <label>OUTLET</label>
+                        <select id="pms-outlet" onchange="renderPMSDashboard()">
+                            <option value="ALL">Pilih Cabang / Wilayah</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
                         <label>PERIODE UPDATE</label>
                         <select id="pms-period"><option value="ALL">Data Terbaru (30/09/2026)</option></select>
                     </div>
@@ -730,6 +736,12 @@
                 `;
 
                 contentArea.innerHTML = `
+                    <!-- KONTAINER KPI CARDS (Disembunyikan jika "Pilih Cabang" adalah ALL) -->
+                    <div id="pms-kpi-cards" style="display: none;">
+                        <div class="kpi-grid" id="pms-top-cards" style="margin-bottom: 20px;"></div>
+                        <div class="booking-row" id="pms-bottom-cards" style="margin-bottom: 30px;"></div>
+                    </div>
+
                     <div class="section-subtitle">Matriks Data Skor PMS Cabang</div>
                     <div class="table-card" style="padding: 10px;">
                         <div class="table-responsive pms-responsive">
@@ -737,7 +749,6 @@
                                 <thead id="pms-table-head">
                                     <tr>
                                         <th rowspan="2" class="sticky-col">Nama Cabang</th>
-                                        <!-- Ubah colspan menjadi 3 untuk Profitabilitas -->
                                         <th colspan="3" style="background-color: #22c55e; color: #064e3b;">Profitabilitas</th>
                                         <th colspan="4" style="background-color: #f97316; color: #fff;">AVG DPK</th>
                                         <th colspan="2" style="background-color: #eab308; color: #713f12;">KREDIT</th>
@@ -753,7 +764,6 @@
                                     <tr>
                                         <th>PPOP<br>Bank<br>Wide</th>
                                         <th>PPOP</th>
-                                        <!-- Tambahkan Kolom FBI -->
                                         <th>FBI</th>
                                         
                                         <th>Volume<br>Rata-rata<br>Giro Non<br>SR</th>
@@ -1396,66 +1406,87 @@
                 return;
             }
 
-            // Skala Warna (Heat Map) Otomatis
+            let selOutlet = document.getElementById("pms-outlet");
+
+            // Mengisi Dropdown Outlet dengan daftar cabang unik (Mulai langsung dari cabang pertama)
+            if (selOutlet && (selOutlet.options.length === 0 || selOutlet.options[0].value === "ALL")) {
+                selOutlet.innerHTML = ""; // Bersihkan opsi "Pilih Cabang / ALL"
+                let outletSet = new Set();
+                for (let r = 8; r < pmsData.length; r++) {
+                    let row = pmsData[r];
+                    if (!row) continue;
+                    let namaCabang = String(row[1] || "").trim();
+                    let checkVal = parseFloat(row[4]); 
+                    if (namaCabang && !isNaN(checkVal) && !namaCabang.toLowerCase().includes("nama cabang") && !namaCabang.toLowerCase().includes("bobot") && !namaCabang.toLowerCase().includes("update")) {
+                        outletSet.add(namaCabang);
+                    }
+                }
+                Array.from(outletSet).sort().forEach(c => selOutlet.add(new Option(c, c)));
+            }
+            
+            // Ambil value cabang terpilih (otomatis cabang pertama di awal load)
+            let fOutlet = selOutlet ? selOutlet.value : "";
+
+            // Skala Warna Background Tabel
             function getHeatmapStyle(val) {
                 if (isNaN(val) || val === "") return 'background-color: #f8fafc; color: #cbd5e1;';
-                if (val >= 4.5) return 'background-color: #16a34a; color: #fff;';    // Hijau Tua (Sangat Baik)
-                if (val >= 3.5) return 'background-color: #86efac; color: #064e3b;'; // Hijau Muda (Baik)
-                if (val >= 2.5) return 'background-color: #fde047; color: #713f12;'; // Kuning (Cukup)
-                if (val >= 1.0) return 'background-color: #fb923c; color: #fff;';    // Oranye (Kurang)
-                return 'background-color: #ef4444; color: #fff;';                    // Merah (Sangat Kurang)
+                if (val >= 4.5) return 'background-color: #16a34a; color: #fff;';    
+                if (val >= 3.5) return 'background-color: #86efac; color: #064e3b;'; 
+                if (val >= 2.5) return 'background-color: #fde047; color: #713f12;'; 
+                if (val >= 1.0) return 'background-color: #fb923c; color: #fff;';    
+                return 'background-color: #ef4444; color: #fff;';                    
+            }
+
+            // Skala Warna Teks Kartu (Solid untuk latar putih)
+            function getCardFontColor(val) {
+                if (isNaN(val) || val === "") return 'var(--text-muted)';
+                if (val >= 4.5) return '#16a34a'; 
+                if (val >= 3.5) return '#22c55e'; // Hijau
+                if (val >= 2.5) return '#eab308'; // Kuning
+                if (val >= 1.0) return '#f97316'; // Oranye
+                return '#ef4444'; // Merah
             }
 
             let tbodyHtml = "";
             let dataDitemukan = false;
+            let selectedRowData = null; // Menyimpan data spesifik HANYA untuk KPI Card
             
-            // SESUAI KONFIRMASI: Nama Cabang ada di KOLOM B (Indeks 1)
             let nameColIdx = 1; 
-            // SESUAI KONFIRMASI: Data dimulai dari PPOP Bank Wide di KOLOM E (Indeks 4)
             let startCol = 4;
             
-            // Mulai loop dari indeks ke-8 agar baris header dan bobot diabaikan
             for (let r = 8; r < pmsData.length; r++) {
                 let row = pmsData[r];
                 if (!row) continue;
                 
-                // Ambil Nama Cabang (Kolom B / Indeks 1)
                 let namaCabang = String(row[nameColIdx] || "").trim();
-                
-                // Cek nilai pertama (Kolom E) untuk validasi baris
                 let checkVal = parseFloat(row[startCol]); 
                 
-                // FILTER BARIS: Abaikan jika kosong atau berisi teks header
-                if (!namaCabang || 
-                    isNaN(checkVal) || 
-                    namaCabang.toLowerCase().includes("nama cabang") || 
-                    namaCabang.toLowerCase().includes("bobot") ||
-                    namaCabang.toLowerCase().includes("update")) {
+                if (!namaCabang || isNaN(checkVal) || namaCabang.toLowerCase().includes("nama cabang") || namaCabang.toLowerCase().includes("bobot") || namaCabang.toLowerCase().includes("update")) {
                     continue;
+                }
+
+                // Tangkap data baris HANYA untuk cabang yang sedang dipilih (untuk mengisi KPI Card)
+                if (namaCabang === fOutlet) {
+                    selectedRowData = row;
                 }
 
                 dataDitemukan = true;
                 
-                // Render teks Nama Cabang
+                // RENDER TABEL: SELALU TAMPILKAN SEMUA DATA (Tanpa Filter)
                 let rowHtml = `<tr><td class="sticky-col" style="font-weight:700;">${namaCabang}</td>`;
-                
-                // Total kolom data dari E sampai AD adalah 26 kolom (24 Heatmap, 1 Total Skor, 1 Rank)
                 let targetColCount = 26; 
                 
                 for (let i = 0; i < targetColCount; i++) {
-                    let colIdx = startCol + i; // Bergerak dari Kolom E (Indeks 4) ke kanan
+                    let colIdx = startCol + i; 
                     let valRaw = row[colIdx];
                     let valNum = parseFloat(valRaw);
                     let valToDisplay = isNaN(valNum) ? 0 : valNum;
 
-                    // Indeks loop ke-24 adalah Total Skor PMS (Kolom AC / Indeks 28)
-                    // Indeks loop ke-25 adalah RANK WIL (Kolom AD / Indeks 29)
                     if (i === 24 || i === 25) {
                          let rankStyle = (i === 25) ? 'font-weight:800; background-color:#f1f5f9; color:#0f172a;' : 'font-weight:700; background-color:#e0f2fe; color:#0369a1;';
                          let displayStr = isNaN(valNum) ? "-" : (i === 25 ? valNum : valNum.toFixed(2).replace('.', ','));
                          rowHtml += `<td style="${rankStyle}">${displayStr}</td>`;
                     } else {
-                         // Indeks 0-23 (Kolom E - AB) menggunakan warna Heatmap
                          let style = getHeatmapStyle(valToDisplay);
                          rowHtml += `<td class="heatmap-cell" style="${style}">${valToDisplay.toFixed(2).replace('.', ',')}</td>`;
                     }
@@ -1466,10 +1497,116 @@
             }
 
             if (!dataDitemukan) {
-               tbodyHtml = `<tr><td colspan="27" style="text-align:center; padding:20px; color:var(--text-muted);">Format data pada sheet "PMS" tidak sesuai atau kosong.</td></tr>`;
+               tbodyHtml = `<tr><td colspan="27" style="text-align:center; padding:20px; color:var(--text-muted);">Tidak ada data cabang.</td></tr>`;
             }
-
             document.getElementById("pms-table-body").innerHTML = tbodyHtml;
+
+            // ==========================================
+            // RENDER KPI CARDS DI ATAS TABEL
+            // ==========================================
+            let cardsContainer = document.getElementById("pms-kpi-cards");
+            if (selectedRowData) {
+                cardsContainer.style.display = "block";
+
+                let getVal = (idx) => {
+                    let v = parseFloat(selectedRowData[startCol + idx]);
+                    return isNaN(v) ? 0 : v;
+                };
+
+                let getDetailRowHtml = (label, val) => {
+                    let color = getCardFontColor(val);
+                    return `<div class="detail-row"><span>${label}</span> <span style="color: ${color}; font-weight: 800; font-size: 15px;">${val.toFixed(2).replace('.', ',')}</span></div>`;
+                };
+
+                let topCardsHtml = `
+                    <div class="kpi-card" style="border-left-color: #22c55e;">
+                        <div class="kpi-header">PROFITABILITAS</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("PPOP Bank Wide", getVal(0))}
+                            ${getDetailRowHtml("PPOP", getVal(1))}
+                            ${getDetailRowHtml("FBI", getVal(2))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #f97316;">
+                        <div class="kpi-header">AVG DPK</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Vol Avg Giro Non SR", getVal(3))}
+                            ${getDetailRowHtml("Vol Avg Tab Non SR", getVal(4))}
+                            ${getDetailRowHtml("Vol Avg CASA All", getVal(5))}
+                            ${getDetailRowHtml("Vol Avg Deposito P Non SR", getVal(6))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #eab308;">
+                        <div class="kpi-header">KREDIT</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Vol Avg Kredit Konsumer", getVal(7))}
+                            ${getDetailRowHtml("Vol Avg Kredit Produktif", getVal(8))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #0284c7;">
+                        <div class="kpi-header">KUALITAS</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Kualitas", getVal(9))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #d97706;">
+                        <div class="kpi-header">MARKET SHARE</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Market Share Tab", getVal(10))}
+                            ${getDetailRowHtml("Market Share Giro", getVal(11))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #0ea5e9;">
+                        <div class="kpi-header">SEI</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("SEI", getVal(12))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #6366f1;">
+                        <div class="kpi-header" style="font-size:11px;">AKUISISI, USER AKTIF, VOL & TRX</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Akuisisi New CIF Tab Berbayar", getVal(13))}
+                            ${getDetailRowHtml("Deb Baru Segmen Kecil", getVal(14))}
+                            ${getDetailRowHtml("Akuisisi NTB & ETB Kartu Kredit", getVal(15))}
+                            ${getDetailRowHtml("Jumlah CIF Operating Acc", getVal(17))}
+                            ${getDetailRowHtml("Volume GB & Trade", getVal(18))}
+                            ${getDetailRowHtml("Produktivitas Merchant", getVal(19))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #84cc16;">
+                        <div class="kpi-header" style="font-size:11px;">EKSEKUSI VALUE CHAIN, EKOSISTEM & POI</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Eksekusi Value Chain, Ekosistem & POI", getVal(20))}
+                            ${getDetailRowHtml("Produktivitas RM & Sales", getVal(21))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #10b981;">
+                        <div class="kpi-header">PEOPLE</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Earning per Employee", getVal(22))}
+                            ${getDetailRowHtml("People Dev", getVal(23))}
+                        </div>
+                    </div>
+                `;
+                document.getElementById("pms-top-cards").innerHTML = topCardsHtml;
+
+                let skorVal = getVal(24);
+                let rankVal = getVal(25);
+                let bottomCardsHtml = `
+                    <div class="kpi-card" style="flex:1; border-left-color: #0ea5e9; text-align:center; padding: 30px;">
+                        <div class="kpi-header">TOTAL SCORE PMS</div>
+                        <h2 class="kpi-main-val" style="font-size: 38px; color: ${getCardFontColor(skorVal)}">${skorVal.toFixed(2).replace('.', ',')}</h2>
+                    </div>
+                    <div class="kpi-card" style="flex:1; border-left-color: #0f172a; text-align:center; padding: 30px; background-color: var(--neutral-bg);">
+                        <div class="kpi-header">RANK WILAYAH</div>
+                        <h2 class="kpi-main-val" style="font-size: 38px; color: #0f172a;">${rankVal}</h2>
+                    </div>
+                `;
+                document.getElementById("pms-bottom-cards").innerHTML = bottomCardsHtml;
+
+            } else {
+                if (cardsContainer) cardsContainer.style.display = "none";
+            }
         }
 		
         function renderDpkDetailFiltersAndDashboard() {
