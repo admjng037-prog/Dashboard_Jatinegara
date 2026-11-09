@@ -311,7 +311,13 @@
                     <span class="icon" style="font-size: 11px;">▪</span> Detail BCM
                 </li>
             </ul>
-
+			
+			<div class="menu-category">Gainer & Looser</div>
+            <ul class="menu-list">
+                <li class="menu-item" onclick="switchMenu('GAINER_LOOSER', this)">
+                    <span class="icon">⚖️</span> Gainer Looser
+                </li>
+            </ul>
             
             <div class="menu-category">Pipeline</div>
             <ul class="menu-list">
@@ -451,6 +457,11 @@
             "PERFORMANCE_SALES": {
                 title: "Performance KPI Sales",
                 type: "performance"
+            },
+			
+			"GAINER_LOOSER": {
+                title: "Top Gainer & Looser",
+                type: "gainloss"
             },
             
             "PIPELINE_KONSUMER": {
@@ -1242,7 +1253,81 @@
 
                 renderBookingFiltersAndDashboard();
             }
+        
+		
+		else if(cfg.type === "gainloss") {
+            // UI UNTUK DROPDOWN FILTER GAINER LOOSER
+            filterArea.innerHTML = `
+                <div class="filter-group">
+                    <label>CABANG</label>
+                    <select id="gl-cabang" onchange="renderGainLossDashboard()"><option value="ALL">Semua Cabang</option></select>
+                </div>
+                <div class="filter-group">
+                    <label>JENIS PRODUK</label>
+                    <select id="gl-produk" onchange="renderGainLossDashboard()"><option value="ALL">Semua Produk</option></select>
+                </div>
+                <div class="filter-group">
+                    <label>PERIODE</label>
+                    <select id="gl-periode" onchange="renderGainLossDashboard()"></select>
+                </div>
+                <div class="filter-group">
+                    <label>SORT BY</label>
+                    <select id="gl-sort" onchange="renderGainLossDashboard()">
+                        <option value="LOOSER">Top Looser (Terendah ke Tertinggi)</option>
+                        <option value="GAINER">Top Gainer (Tertinggi ke Terendah)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>RANK BY</label>
+                    <select id="gl-rank" onchange="renderGainLossDashboard()">
+                        <option value="10">Top 10</option>
+                        <option value="25">Top 25</option>
+                        <option value="50">Top 50</option>
+                        <option value="100">Top 100</option>
+                    </select>
+                </div>
+                <button class="refresh-btn" onclick="fetchAPI(true)">🔄 Refresh Data</button>
+            `;
+
+            // UI UNTUK TABEL DATA GAINER LOOSER
+            contentArea.innerHTML = `
+                <div class="section-subtitle">Data Gainer & Looser</div>
+                <div class="table-card" style="padding: 10px;">
+                    <div class="table-responsive">
+                        <table class="kpi-table" id="gl-table" style="white-space: nowrap;">
+                            <thead id="gl-table-head">
+                                <tr>
+                                    <th style="background-color: #84cc16; color: #3f6212;">No</th>
+                                    <th style="background-color: #84cc16; color: #3f6212;">CIF</th>
+                                    <th style="background-color: #84cc16; color: #3f6212;">Nama Nasabah</th>
+                                    <th style="background-color: #84cc16; color: #3f6212;">Cabang</th>
+                                    <th style="background-color: #84cc16; color: #3f6212;">Segmen</th>
+                                    <th style="background-color: #84cc16; color: #3f6212;" id="gl-col-date1">-</th>
+                                    <th style="background-color: #84cc16; color: #3f6212;" id="gl-col-date2">-</th>
+                                    <th style="background-color: #84cc16; color: #3f6212;" id="gl-col-diff">Delta Saldo</th>
+                                    <th style="background-color: #84cc16; color: #3f6212;">% Perubahan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="gl-table-body">
+                                <tr>
+                                    <td colspan="9" style="text-align:center; padding:20px; color:var(--text-muted);">
+                                        Sistem sedang menyiapkan data Gainer & Looser...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            // Trigger otomatis saat menu dibuka
+            renderGainLossDashboard();
         }
+		
+	}
+        // ========================================================
+        // BATAS AKHIR KODE GAINER LOOSER
+        // ========================================================
 
         const percentageLabelPlugin = {
             id: 'percentageLabelPlugin',
@@ -2956,6 +3041,194 @@
             if(tbody) tbody.innerHTML = tableRowsHtml || `<tr><td colspan="7" style="text-align:center; padding:15px;">Tidak ada data yang sesuai filter.</td></tr>`;
             document.getElementById("pipeline-dpk-table-count").innerText = `${tabStats.countTotal} baris data ditemukan`;
             document.getElementById("pipeline-update-date").innerText = "Update Data: " + new Date().toLocaleDateString('id-ID');
+        }
+		
+		// Fungsi pembantu membaca angka (Mendukung segala format desimal/ribuan US & ID)
+        function parseNominal(val) {
+            if (val === null || val === undefined || val === '') return 0;
+            if (typeof val === 'number') return val;
+            
+            let str = String(val).trim();
+            str = str.replace(/Rp/gi, '').trim(); 
+            str = str.replace(/\s+/g, '');
+
+            if (str.includes('.') && str.includes(',')) {
+                if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+                    // Format ID: 1.000,50
+                    str = str.replace(/\./g, '').replace(',', '.');
+                } else {
+                    // Format US: 1,000.50
+                    str = str.replace(/,/g, '');
+                }
+            } else if (str.includes('.')) {
+                let parts = str.split('.');
+                if (parts.length > 2) {
+                    str = str.replace(/\./g, '');
+                } else {
+                    if (parts[1].length === 3) str = str.replace(/\./g, '');
+                }
+            } else if (str.includes(',')) {
+                let parts = str.split(',');
+                if (parts.length > 2) {
+                    str = str.replace(/,/g, '');
+                } else {
+                    // Jika tepat 3 digit di belakang koma, itu pasti ribuan (US), bukan desimal
+                    if (parts[1].length === 3) str = str.replace(/,/g, '');
+                    else str = str.replace(',', '.');
+                }
+            }
+            return parseFloat(str) || 0;
+        }
+
+        function renderGainLossDashboard() {
+            let glData = RAW.gainloss;
+            if (!glData || glData.length < 2) {
+                document.getElementById("gl-table-body").innerHTML = `<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--text-muted);">Data Gainer & Looser belum tersedia.</td></tr>`;
+                return;
+            }
+
+            let selCabang = document.getElementById("gl-cabang");
+            let selProduk = document.getElementById("gl-produk");
+            let selPeriode = document.getElementById("gl-periode");
+            let selSort = document.getElementById("gl-sort");
+            let selRank = document.getElementById("gl-rank");
+
+            let periodeSet = new Set();
+            let cabangSet = new Set();
+            let produkSet = new Set();
+
+            for (let i = 1; i < glData.length; i++) {
+                let row = glData[i];
+                if (row[0]) periodeSet.add(String(row[0]).trim());
+                if (row[3]) cabangSet.add(String(row[3]).trim());
+                if (row[4]) produkSet.add(String(row[4]).trim());
+            }
+
+            if (selPeriode && selPeriode.options.length === 0) {
+                Array.from(periodeSet).sort().forEach(p => selPeriode.add(new Option(p, p)));
+            }
+            if (selCabang && selCabang.options.length <= 1) {
+                selCabang.innerHTML = `<option value="ALL">Semua Cabang</option>`;
+                Array.from(cabangSet).sort().forEach(c => selCabang.add(new Option(c, c)));
+            }
+            if (selProduk && selProduk.options.length <= 1) {
+                selProduk.innerHTML = `<option value="ALL">Semua Produk</option>`;
+                Array.from(produkSet).sort().forEach(p => selProduk.add(new Option(p, p)));
+            }
+
+            let fPeriode = selPeriode ? selPeriode.value : ""; 
+            let fCabang = selCabang ? selCabang.value : "ALL";
+            let fProduk = selProduk ? selProduk.value : "ALL";
+            let sortMode = selSort ? selSort.value : "LOOSER";
+            let rankLimit = selRank ? parseInt(selRank.value) : 10;
+
+            let colDate1Header = document.getElementById("gl-col-date1");
+            let colDate2Header = document.getElementById("gl-col-date2");
+            let colDiffHeader = document.getElementById("gl-col-diff");
+
+            let tglHariIni = new Date();
+            let tglAkhir = new Date(tglHariIni);
+            tglAkhir.setDate(tglHariIni.getDate() - 2);
+
+            let tglPembanding = new Date(tglAkhir);
+            let labelPembanding = "31/12/25";
+            let labelAkhir = `${String(tglAkhir.getDate()).padStart(2, '0')}/${String(tglAkhir.getMonth() + 1).padStart(2, '0')}/${String(tglAkhir.getFullYear()).slice(-2)}`;
+
+            let pLower = fPeriode.toLowerCase();
+            if (pLower.includes("yesterday")) {
+                tglPembanding.setDate(tglAkhir.getDate() - 1);
+                labelPembanding = `${String(tglPembanding.getDate()).padStart(2, '0')}/${String(tglPembanding.getMonth() + 1).padStart(2, '0')}/${String(tglPembanding.getFullYear()).slice(-2)}`;
+            } else if (pLower.includes("last month") || pLower.includes("month")) {
+                tglPembanding = new Date(tglAkhir.getFullYear(), tglAkhir.getMonth(), 0);
+                labelPembanding = `${String(tglPembanding.getDate()).padStart(2, '0')}/${String(tglPembanding.getMonth() + 1).padStart(2, '0')}/${String(tglPembanding.getFullYear()).slice(-2)}`;
+            } else if (pLower.includes("last year") || pLower.includes("year")) {
+                labelPembanding = "31/12/25";
+            }
+
+            if (colDate1Header) colDate1Header.innerText = labelPembanding;
+            if (colDate2Header) colDate2Header.innerText = labelAkhir;
+            if (colDiffHeader) colDiffHeader.innerText = "Delta Saldo";
+
+            let parsedRows = [];
+
+            for (let i = 1; i < glData.length; i++) {
+                let row = glData[i];
+                if (!row || row.length < 14) continue;
+
+                let rowPeriode = String(row[0] || "").trim();
+                let cabang = String(row[3] || "").trim();
+                let produk = String(row[4] || "").trim();
+                let cif = String(row[6] || "").trim();
+                let nama = String(row[7] || "").trim();
+                let segmen = String(row[8] || "").trim();
+                
+                let valPembanding = parseNominal(row[11]);
+                let valAkhir = parseNominal(row[12]);
+                let rawDelta = parseNominal(row[13]);
+                
+                let deltaSaldo = (row[13] !== undefined && row[13] !== "") ? rawDelta : (valAkhir - valPembanding);
+
+                if (!nama) continue;
+                if (rowPeriode !== fPeriode) continue;
+                if (fCabang !== "ALL" && cabang !== fCabang) continue;
+                if (fProduk !== "ALL" && produk !== fProduk) continue;
+
+                let pctChange = 0;
+                if (valPembanding !== 0) {
+                    pctChange = ((valAkhir - valPembanding) / Math.abs(valPembanding)) * 100;
+                } else if (valAkhir > 0) {
+                    pctChange = 100;
+                } else if (valAkhir < 0) {
+                    pctChange = -100;
+                }
+
+                parsedRows.push({
+                    cif, nama, cabang, segmen, valPembanding, valAkhir, deltaSaldo, pctChange
+                });
+            }
+
+            parsedRows.sort((a, b) => {
+                if (sortMode.includes("GAINER")) {
+                    return b.deltaSaldo - a.deltaSaldo;
+                } else {
+                    return a.deltaSaldo - b.deltaSaldo;
+                }
+            });
+
+            let finalRows = parsedRows.slice(0, rankLimit);
+            let tbodyHtml = "";
+            
+            finalRows.forEach((item, index) => {
+                let diffColor = item.deltaSaldo >= 0 ? "green" : "red";
+                let pctColor = item.pctChange >= 0 ? "green" : "red";
+
+                // Memunculkan kembali desimal jika data tersebut memang pecahan
+                let formatRupiah = (val) => {
+                    if (val % 1 !== 0) {
+                        return val.toLocaleString('id-ID', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                    }
+                    return val.toLocaleString('id-ID', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+                };
+
+                // Memunculkan 2 desimal koma untuk % Perubahan (contoh: -20,98% bukan -21%)
+                let formattedPct = item.pctChange.toFixed(2).replace('.', ',');
+
+                tbodyHtml += `
+                    <tr>
+                        <td><b>${index + 1}</b></td>
+                        <td>${item.cif}</td>
+                        <td><b>${item.nama}</b></td>
+                        <td>${item.cabang}</td>
+                        <td>${item.segmen}</td>
+                        <td>${formatRupiah(item.valPembanding)}</td>
+                        <td>${formatRupiah(item.valAkhir)}</td>
+                        <td><b class="${diffColor}">${formatRupiah(item.deltaSaldo)}</b></td>
+                        <td><span class="badge-cell ${pctColor}">${formattedPct}%</span></td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById("gl-table-body").innerHTML = tbodyHtml || `<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--text-muted);">Tidak ada data yang cocok dengan kriteria filter.</td></tr>`;
         }
 
     </script>
