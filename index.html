@@ -1306,25 +1306,26 @@
                     <div class="table-responsive">
                         <table class="kpi-table" id="gl-table" style="white-space: nowrap;">
                             <thead id="gl-table-head">
-                                <tr>
-                                    <th style="background-color: #84cc16; color: #3f6212;">No</th>
-                                    <th style="background-color: #84cc16; color: #3f6212;">CIF</th>
-                                    <th style="background-color: #84cc16; color: #3f6212;">Nama Nasabah</th>
-                                    <th style="background-color: #84cc16; color: #3f6212;">Cabang</th>
-                                    <th style="background-color: #84cc16; color: #3f6212;">Segmen</th>
-                                    <th style="background-color: #84cc16; color: #3f6212;" id="gl-col-date1">-</th>
-                                    <th style="background-color: #84cc16; color: #3f6212;" id="gl-col-date2">-</th>
-                                    <th style="background-color: #84cc16; color: #3f6212;" id="gl-col-diff">Delta Saldo</th>
-                                    <th style="background-color: #84cc16; color: #3f6212;">% Perubahan</th>
-                                </tr>
-                            </thead>
-                            <tbody id="gl-table-body">
-                                <tr>
-                                    <td colspan="9" style="text-align:center; padding:20px; color:var(--text-muted);">
-                                        Sistem sedang menyiapkan data Gainer & Looser...
-                                    </td>
-                                </tr>
-                            </tbody>
+    <tr>
+        <th style="background-color: #84cc16; color: #3f6212;">No</th>
+        <th style="background-color: #84cc16; color: #3f6212;">CIF</th>
+        <th style="background-color: #84cc16; color: #3f6212;">Nama Nasabah</th>
+        <th style="background-color: #84cc16; color: #3f6212;">Cabang</th>
+        <th style="background-color: #84cc16; color: #3f6212;">Segmen</th>
+        <th style="background-color: #84cc16; color: #3f6212;">Jenis Produk</th> <!-- Tambahan -->
+        <th style="background-color: #84cc16; color: #3f6212;" id="gl-col-date1">-</th>
+        <th style="background-color: #84cc16; color: #3f6212;" id="gl-col-date2">-</th>
+        <th style="background-color: #84cc16; color: #3f6212;" id="gl-col-diff">Delta Saldo</th>
+        <th style="background-color: #84cc16; color: #3f6212;">% Perubahan</th>
+    </tr>
+</thead>
+<tbody id="gl-table-body">
+    <tr>
+        <td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);"> <!-- Ubah ke 10 -->
+            Sistem sedang menyiapkan data Gainer & Looser...
+        </td>
+    </tr>
+</tbody>
                         </table>
                     </div>
                 </div>
@@ -3320,7 +3321,7 @@
                 }
 
                 parsedRows.push({
-                    cif, nama, cabang, segmen, valPembanding, valAkhir, deltaSaldo, pctChange
+                    cif, nama, cabang, segmen, produk, valPembanding, valAkhir, deltaSaldo, pctChange
                 });
             }
 
@@ -3351,21 +3352,22 @@
                 let formattedPct = item.pctChange.toFixed(2).replace('.', ',');
 
                 tbodyHtml += `
-                    <tr>
-                        <td><b>${index + 1}</b></td>
-                        <td>${item.cif}</td>
-                        <td><b>${item.nama}</b></td>
-                        <td>${item.cabang}</td>
-                        <td>${item.segmen}</td>
-                        <td>${formatRupiah(item.valPembanding)}</td>
-                        <td>${formatRupiah(item.valAkhir)}</td>
-                        <td><b class="${diffColor}">${formatRupiah(item.deltaSaldo)}</b></td>
-                        <td><span class="badge-cell ${pctColor}">${formattedPct}%</span></td>
-                    </tr>
-                `;
-            });
+    <tr>
+        <td><b>${index + 1}</b></td>
+        <td>${item.cif}</td>
+        <td><b>${item.nama}</b></td>
+        <td>${item.cabang}</td>
+        <td>${item.segmen}</td>
+        <td>${item.produk}</td> <!-- Tambahan Jenis Produk -->
+        <td>${formatRupiah(item.valPembanding)}</td>
+        <td>${formatRupiah(item.valAkhir)}</td>
+        <td><b class="${diffColor}">${formatRupiah(item.deltaSaldo)}</b></td>
+        <td><span class="badge-cell ${pctColor}">${formattedPct}%</span></td>
+    </tr>
+`;
+});
 
-            document.getElementById("gl-table-body").innerHTML = tbodyHtml || `<tr><td colspan="9" style="text-align:center; padding:20px; color:var(--text-muted);">Tidak ada data yang cocok dengan kriteria filter.</td></tr>`;
+document.getElementById("gl-table-body").innerHTML = tbodyHtml || `<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);">Tidak ada data yang cocok dengan kriteria filter.</td></tr>`; // Ubah ke 10
         }
 
     </script>
