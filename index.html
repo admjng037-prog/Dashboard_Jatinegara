@@ -8,6 +8,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <!-- html2pdf for PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+	<!-- SheetJS for Excel Export -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
         :root {
@@ -93,6 +95,15 @@
         .filter-group { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 150px; }
         .filter-group label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
         .filter-group select { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; color: var(--text-main); width: 100%; cursor: pointer; background: white; }
+		
+		/* CUSTOM CHECKBOX DROPDOWN */
+        .checkbox-dropdown { position: relative; width: 100%; }
+        .checkbox-dropdown-title { padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; background: white; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--text-main); }
+        .checkbox-dropdown-list { position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid var(--border-color); border-radius: 6px; z-index: 999; display: none; max-height: 250px; overflow-y: auto; padding: 5px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .checkbox-dropdown-list.show { display: block; }
+        .checkbox-dropdown-list label { display: flex; align-items: center; gap: 8px; padding: 8px; font-size: 13px; cursor: pointer; color: var(--text-main); font-weight: 500; text-transform: none; margin: 0; border-radius: 4px;}
+        .checkbox-dropdown-list label:hover { background-color: var(--neutral-bg); }
+        .checkbox-dropdown-list input[type="checkbox"] { width: auto; cursor: pointer; margin: 0; }
         
         .refresh-btn { background-color: var(--success-green); color: white; border: none; padding: 9px 16px; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.2s; font-size: 13px; height: 38px; }
         .refresh-btn:hover { background-color: #059669; }
@@ -266,13 +277,13 @@
             
 			<div class="menu-category">Menu Utama</div>
             <ul class="menu-list">
-                <li class="menu-item" onclick="switchMenu('SCORE_PMS', this)">
-                    <span class="icon">🏆</span> Score PMS
-                </li>
+                <li class="menu-item active" onclick="switchMenu('SCORE_PMS', this)">
+    <span class="icon">🏆</span> Score PMS
+</li>
             </ul>
             <div class="menu-category">Dana & Kredit</div>
             <ul class="menu-list">
-                <li class="menu-item active" onclick="switchMenu('DPK', this)">
+                <li class="menu-item" onclick="switchMenu('DPK', this)">
                     <span class="icon">📊</span> Dashboard DPK
                 </li>
                 
@@ -367,7 +378,7 @@
         const API_URL = "https://script.google.com/macros/s/AKfycbz0gKn5sGmEpMlqJ5rZiAXHtNNMEsgzA8oWsHcudlHPF7DEM-clSzZjPck4uS2VnIL3/exec";
 
         let RAW = null; 
-        let CURRENT_MENU = "DPK"; 
+        let CURRENT_MENU = "SCORE_PMS"; 
         let activeChart = null;
         let gaugeChart = null;
         let distributionChart = null;
@@ -562,8 +573,8 @@
                 
                 document.querySelectorAll('.menu-item').forEach(li => li.classList.remove('active'));
                 document.querySelector('.menu-item').classList.add('active');
-                CURRENT_MENU = "DPK";
-                document.getElementById('page-title').innerText = CONFIG["DPK"].title;
+                CURRENT_MENU = "SCORE_PMS";
+document.getElementById('page-title').innerText = CONFIG["SCORE_PMS"].title;
                 document.getElementById("content-body-area").innerHTML = "";
                 document.getElementById("filter-container-area").innerHTML = "";
                 
@@ -692,11 +703,27 @@
             }
 
             if(cfg.type === "standard") {
+                // Tambahkan pengecekan menu produktif
+                let hubFilterHtml = "";
+                if (CURRENT_MENU === "PRODUKTIF") {
+                    hubFilterHtml = `
+                    <div class="filter-group">
+                        <label>HUB</label>
+                        <select id="hub-select" onchange="filterOutletByHub(); renderStandardDashboard()">
+                            <option value="ALL">Semua HUB</option>
+                            <option value="JATINEGARA">HUB Jatinegara</option>
+                            <option value="KRAMAT_JATI">HUB OBO Kramat Jati</option>
+                        </select>
+                    </div>
+                    `;
+                }
+
                 filterArea.innerHTML = `
                     <div class="filter-group">
                         <label>OUTLET</label>
                         <select id="outlet-select" onchange="renderStandardDashboard()"><option value="ALL">Semua Cabang</option></select>
                     </div>
+                    ${hubFilterHtml} <!-- Dropdown disisipkan di sini -->
                     <div class="filter-group">
                         <label>PILIH TARGET BULAN</label>
                         <select id="target-date-select" onchange="renderStandardDashboard()"></select>
@@ -738,8 +765,10 @@
                 contentArea.innerHTML = `
                     <!-- KONTAINER KPI CARDS (Disembunyikan jika "Pilih Cabang" adalah ALL) -->
                     <div id="pms-kpi-cards" style="display: none;">
-                        <div class="kpi-grid" id="pms-top-cards" style="margin-bottom: 20px;"></div>
-                        <div class="booking-row" id="pms-bottom-cards" style="margin-bottom: 30px;"></div>
+                        <!-- 2 Card Utama dipindah ke atas -->
+                        <div class="booking-row" id="pms-bottom-cards" style="margin-bottom: 20px;"></div>
+                        <!-- 9 Card Rincian di bawahnya -->
+                        <div class="kpi-grid" id="pms-top-cards" style="margin-bottom: 30px;"></div>
                     </div>
 
                     <div class="section-subtitle">Matriks Data Skor PMS Cabang</div>
@@ -1103,9 +1132,14 @@
                     </div>
                     <div class="filter-group">
                         <label>BULAN</label>
-                        <select id="book-bulan" onchange="renderBookingDashboard()">
-                            <option value="ALL">Semua Bulan</option>
-                        </select>
+                        <div class="checkbox-dropdown">
+                            <div class="checkbox-dropdown-title" onclick="document.getElementById('book-bulan-list').classList.toggle('show')">
+                                <span id="book-bulan-text">Semua Bulan</span> <span>▼</span>
+                            </div>
+                            <div class="checkbox-dropdown-list" id="book-bulan-list">
+                                <!-- Checkbox bulan di-generate via javascript -->
+                            </div>
+                        </div>
                     </div>
                     <div class="filter-group">
                         <label>OUTLET</label>
@@ -1165,16 +1199,44 @@
 
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 25px;">
                         <div class="chart-card" style="margin-bottom: 0;">
-                            <div class="chart-header">Tren Booking Konsumer per Bulan</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <div class="chart-header" style="margin-bottom: 0;">Tren Booking Konsumer per Bulan</div>
+                                <div class="filter-group" style="max-width: 160px; min-width: 140px;">
+                                    <select id="chartFilterKonsumer" onchange="renderBookingDashboard()" style="padding: 4px 8px; font-size: 12px;">
+                                        <option value="ALL">Semua (Fleksi & Griya)</option>
+                                        <option value="Fleksi">Fleksi</option>
+                                        <option value="Griya">Griya</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div class="chart-container">
                                 <canvas id="bookingKonsumerChart"></canvas>
                             </div>
                         </div>
                         <div class="chart-card" style="margin-bottom: 0;">
-                            <div class="chart-header">Tren Booking SBP per Bulan</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <div class="chart-header" style="margin-bottom: 0;">Tren Booking SBP per Bulan</div>
+                                <div class="filter-group" style="max-width: 160px; min-width: 140px;">
+                                    <select id="chartFilterSBP" onchange="renderBookingDashboard()" style="padding: 4px 8px; font-size: 12px;">
+                                        <option value="ALL">Semua (KUR & BWU)</option>
+                                        <option value="KUR">KUR</option>
+                                        <option value="BWU">BWU</option>
+                                    </select>
+                                </div>
+                            </div>
                             <div class="chart-container">
                                 <canvas id="bookingSbpChart"></canvas>
                             </div>
+                        </div>
+                    </div>
+					
+					<!-- GRAFIK KETIGA (GABUNGAN TOTAL KONSUMER & SBP) -->
+                    <div class="chart-card" style="margin-bottom: 25px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div class="chart-header" style="margin-bottom: 0;">Tren Gabungan Total Booking (Konsumer & SBP) per Bulan</div>
+                        </div>
+                        <div class="chart-container" style="height: 350px;">
+                            <canvas id="bookingTotalChart"></canvas>
                         </div>
                     </div>
 
@@ -1300,11 +1362,16 @@
             `;
 
             // UI UNTUK TABEL DATA GAINER LOOSER
-            contentArea.innerHTML = `
-                <div class="section-subtitle">Data Gainer & Looser</div>
-                <div class="table-card" style="padding: 10px;">
-                    <div class="table-responsive">
-                        <table class="kpi-table" id="gl-table" style="white-space: nowrap;">
+contentArea.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; margin-bottom: 15px;">
+        <div class="section-subtitle" style="margin: 0;">Data Gainer & Looser</div>
+        <button class="export-btn" onclick="exportExcelGL()" style="background-color: #10b981; color: white; border: none; padding: 8px 16px;">
+            📊 Download Excel
+        </button>
+    </div>
+    <div class="table-card" style="padding: 10px;">
+        <div class="table-responsive">
+            <table class="kpi-table" id="gl-table" style="white-space: nowrap;">
                             <thead id="gl-table-head">
     <tr>
         <th style="background-color: #84cc16; color: #3f6212;">No</th>
@@ -1369,8 +1436,9 @@
 
                     if (rM === 0 && tM === 0) return;
 
+                
                     const isAchieved = isAchievedArray[index];
-                    const r = isAchieved ? 16 : 220;
+					const r = isAchieved ? 16 : 220;
                     const g = isAchieved ? 185 : 38;
                     const b = isAchieved ? 129 : 38;
                     
@@ -1519,9 +1587,11 @@
                     return `<div class="detail-row"><span>${label}</span> <span style="color: ${color}; font-weight: 800; font-size: 15px;">${val.toFixed(2).replace('.', ',')}</span></div>`;
                 };
 
+                let headStyle = "font-size: 14px; font-weight: 800; color: #0f172a; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;";
+                
                 let topCardsHtml = `
                     <div class="kpi-card" style="border-left-color: #22c55e;">
-                        <div class="kpi-header">PROFITABILITAS</div>
+                        <div class="kpi-header" style="${headStyle}">PROFITABILITAS</div>
                         <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
                             ${getDetailRowHtml("PPOP Bank Wide", getVal(0))}
                             ${getDetailRowHtml("PPOP", getVal(1))}
@@ -1529,7 +1599,7 @@
                         </div>
                     </div>
                     <div class="kpi-card" style="border-left-color: #f97316;">
-                        <div class="kpi-header">AVG DPK</div>
+                        <div class="kpi-header" style="${headStyle}">AVG DPK</div>
                         <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
                             ${getDetailRowHtml("Vol Avg Giro Non SR", getVal(3))}
                             ${getDetailRowHtml("Vol Avg Tab Non SR", getVal(4))}
@@ -1537,34 +1607,9 @@
                             ${getDetailRowHtml("Vol Avg Deposito P Non SR", getVal(6))}
                         </div>
                     </div>
-                    <div class="kpi-card" style="border-left-color: #eab308;">
-                        <div class="kpi-header">KREDIT</div>
-                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
-                            ${getDetailRowHtml("Vol Avg Kredit Konsumer", getVal(7))}
-                            ${getDetailRowHtml("Vol Avg Kredit Produktif", getVal(8))}
-                        </div>
-                    </div>
-                    <div class="kpi-card" style="border-left-color: #0284c7;">
-                        <div class="kpi-header">KUALITAS</div>
-                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
-                            ${getDetailRowHtml("Kualitas", getVal(9))}
-                        </div>
-                    </div>
-                    <div class="kpi-card" style="border-left-color: #d97706;">
-                        <div class="kpi-header">MARKET SHARE</div>
-                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
-                            ${getDetailRowHtml("Market Share Tab", getVal(10))}
-                            ${getDetailRowHtml("Market Share Giro", getVal(11))}
-                        </div>
-                    </div>
-                    <div class="kpi-card" style="border-left-color: #0ea5e9;">
-                        <div class="kpi-header">SEI</div>
-                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
-                            ${getDetailRowHtml("SEI", getVal(12))}
-                        </div>
-                    </div>
+                    <!-- Card Akuisisi dipindah ke sini (Sebelah AVG DPK) -->
                     <div class="kpi-card" style="border-left-color: #6366f1;">
-                        <div class="kpi-header" style="font-size:11px;">AKUISISI, USER AKTIF, VOL & TRX</div>
+                        <div class="kpi-header" style="${headStyle}">AKUISISI, USER AKTIF, VOL & TRX</div>
                         <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
                             ${getDetailRowHtml("Akuisisi New CIF Tab Berbayar", getVal(13))}
                             ${getDetailRowHtml("Deb Baru Segmen Kecil", getVal(14))}
@@ -1574,15 +1619,41 @@
                             ${getDetailRowHtml("Produktivitas Merchant", getVal(19))}
                         </div>
                     </div>
+                    <div class="kpi-card" style="border-left-color: #eab308;">
+                        <div class="kpi-header" style="${headStyle}">KREDIT</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Vol Avg Kredit Konsumer", getVal(7))}
+                            ${getDetailRowHtml("Vol Avg Kredit Produktif", getVal(8))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #0284c7;">
+                        <div class="kpi-header" style="${headStyle}">KUALITAS</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Kualitas", getVal(9))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #d97706;">
+                        <div class="kpi-header" style="${headStyle}">MARKET SHARE</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("Market Share Tab", getVal(10))}
+                            ${getDetailRowHtml("Market Share Giro", getVal(11))}
+                        </div>
+                    </div>
+                    <div class="kpi-card" style="border-left-color: #0ea5e9;">
+                        <div class="kpi-header" style="${headStyle}">SEI</div>
+                        <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
+                            ${getDetailRowHtml("SEI", getVal(12))}
+                        </div>
+                    </div>
                     <div class="kpi-card" style="border-left-color: #84cc16;">
-                        <div class="kpi-header" style="font-size:11px;">EKSEKUSI VALUE CHAIN, EKOSISTEM & POI</div>
+                        <div class="kpi-header" style="${headStyle}">EKSEKUSI VALUE CHAIN, EKOSISTEM & POI</div>
                         <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
                             ${getDetailRowHtml("Eksekusi Value Chain, Ekosistem & POI", getVal(20))}
                             ${getDetailRowHtml("Produktivitas RM & Sales", getVal(21))}
                         </div>
                     </div>
                     <div class="kpi-card" style="border-left-color: #10b981;">
-                        <div class="kpi-header">PEOPLE</div>
+                        <div class="kpi-header" style="${headStyle}">PEOPLE</div>
                         <div class="kpi-detail-grid" style="background: transparent; border: none; padding: 0;">
                             ${getDetailRowHtml("Earning per Employee", getVal(22))}
                             ${getDetailRowHtml("People Dev", getVal(23))}
@@ -1593,14 +1664,16 @@
 
                 let skorVal = getVal(24);
                 let rankVal = getVal(25);
+                let scoreColor = getCardFontColor(skorVal);
+                
                 let bottomCardsHtml = `
-                    <div class="kpi-card" style="flex:1; border-left-color: #0ea5e9; text-align:center; padding: 30px;">
-                        <div class="kpi-header">TOTAL SCORE PMS</div>
-                        <h2 class="kpi-main-val" style="font-size: 38px; color: ${getCardFontColor(skorVal)}">${skorVal.toFixed(2).replace('.', ',')}</h2>
+                    <div class="kpi-card" style="flex:1; border: none; border-top: 6px solid ${scoreColor}; background: #ffffff; text-align:center; padding: 30px; box-shadow: 0 10px 20px rgba(0,0,0,0.08);">
+                        <div class="kpi-header" style="font-size: 15px; color: #64748b; letter-spacing: 1px;">🌟 TOTAL SCORE PMS</div>
+                        <h2 class="kpi-main-val" style="font-size: 48px; color: ${scoreColor}; margin-top: 15px;">${skorVal.toFixed(2).replace('.', ',')}</h2>
                     </div>
-                    <div class="kpi-card" style="flex:1; border-left-color: #0f172a; text-align:center; padding: 30px; background-color: var(--neutral-bg);">
-                        <div class="kpi-header">RANK WILAYAH</div>
-                        <h2 class="kpi-main-val" style="font-size: 38px; color: #0f172a;">${rankVal}</h2>
+                    <div class="kpi-card" style="flex:1; border: none; border-top: 6px solid #facc15; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); text-align:center; padding: 30px; box-shadow: 0 10px 20px rgba(0,0,0,0.15);">
+                        <div class="kpi-header" style="font-size: 15px; color: #94a3b8; letter-spacing: 1px;">🏆 RANK WILAYAH</div>
+                        <h2 class="kpi-main-val" style="font-size: 48px; color: #facc15; margin-top: 15px;">${rankVal}</h2>
                     </div>
                 `;
                 document.getElementById("pms-bottom-cards").innerHTML = bottomCardsHtml;
@@ -1841,6 +1914,36 @@
                 `;
             });
         }
+		
+		function filterOutletByHub() {
+            let selOutl = document.getElementById("outlet-select");
+            let hubEl = document.getElementById("hub-select");
+            if (!selOutl || !hubEl) return;
+            
+            let sHub = hubEl.value;
+            let currentSelectedOutlet = selOutl.value;
+            
+            const hubJatinegaraCodes = ["00", "04", "07", "09", "14", "15", "62", "64", "65"];
+            const hubKramatJatiCodes = ["05", "06", "08", "12", "13", "16", "17", "63"];
+            
+            let D_REAL = CURRENT_MENU === "DPK" ? RAW.realisasi : (CURRENT_MENU === "KONSUMER" ? RAW.realisasi_kons : RAW.realisasi_prod);
+            let outlets = new Set();
+            for(let r = 2; r < D_REAL.length; r++) { if(D_REAL[r][4]) outlets.add(D_REAL[r][4]); }
+            
+            selOutl.innerHTML = '<option value="ALL">Semua Cabang</option>';
+            Array.from(outlets).sort().forEach(o => {
+                let code = String(o).trim().substring(0, 2);
+                let hubMatch = true;
+                if(sHub === "JATINEGARA") hubMatch = hubJatinegaraCodes.includes(code);
+                if(sHub === "KRAMAT_JATI") hubMatch = hubKramatJatiCodes.includes(code);
+                if(hubMatch) selOutl.add(new Option(o, o));
+            });
+            
+            // Pertahankan cabang yang sebelumnya dipilih jika masih ada di list
+            if (Array.from(selOutl.options).some(opt => opt.value === currentSelectedOutlet)) {
+                selOutl.value = currentSelectedOutlet;
+            }
+        }
 
         function renderStandardFiltersAndDashboard() {
             let D_REAL = CURRENT_MENU === "DPK" ? RAW.realisasi : (CURRENT_MENU === "KONSUMER" ? RAW.realisasi_kons : RAW.realisasi_prod);
@@ -1897,6 +2000,20 @@
             generateKPICards(CONFIG[CURRENT_MENU].products);
 
             const sOutlet = document.getElementById("outlet-select").value;
+			// 1. Ambil nilai HUB
+const hubEl = document.getElementById("hub-select");
+const sHub = hubEl ? hubEl.value : "ALL";
+
+// 2. Fungsi Bantu validasi Outlet di dalam HUB yang dipilih
+const hubJatinegaraCodes = ["00", "04", "07", "09", "14", "15", "62", "64", "65"];
+const hubKramatJatiCodes = ["05", "06", "08", "12", "13", "16", "17", "63"];
+function isOutletInHub(outletName, hub) {
+     if(hub === "ALL") return true;
+     let code = String(outletName).trim().substring(0, 2);
+     if(hub === "JATINEGARA") return hubJatinegaraCodes.includes(code);
+     if(hub === "KRAMAT_JATI") return hubKramatJatiCodes.includes(code);
+     return true;
+}
             const sDateIdx = parseInt(document.getElementById("date-select").value);
             const sTargIdx = parseInt(document.getElementById("target-date-select").value);
             const des25Idx = D_REAL[1].length - 1; 
@@ -1916,23 +2033,33 @@
                     
                     children.forEach(child => {
                         for(let r = 2; r < D_REAL.length; r++) {
-                            if(String(D_REAL[r][0]).trim() === child && (sOutlet === "ALL" || String(D_REAL[r][4]).trim() === sOutlet)) {
+                            let rOutlet = String(D_REAL[r][4]).trim();
+                            if(String(D_REAL[r][0]).trim() === child && (sOutlet === "ALL" || rOutlet === sOutlet)) {
+                                // Pengecekan HUB di sini
+                                if (isOutletInHub(rOutlet, sHub)) {
+                                    sReal += parseFloat(D_REAL[r][sDateIdx]) || 0;
+                                    sDes25 += parseFloat(D_REAL[r][des25Idx]) || 0;
+                                }
+                            }
+                        }
+                        // Lempar parameter sHub ke fungsi Target
+                        sTprop += getTargetVal(D_TARG, child, sOutlet, sTargIdx, sHub);
+                        sTfy += getTargetVal(D_TARG, child, sOutlet, tfyIdx, sHub);
+                    });
+                } else {
+                    for(let r = 2; r < D_REAL.length; r++) {
+                        let rOutlet = String(D_REAL[r][4]).trim();
+                        if(String(D_REAL[r][0]).trim() === prodName && (sOutlet === "ALL" || rOutlet === sOutlet)) {
+                            // Pengecekan HUB di sini
+                            if (isOutletInHub(rOutlet, sHub)) {
                                 sReal += parseFloat(D_REAL[r][sDateIdx]) || 0;
                                 sDes25 += parseFloat(D_REAL[r][des25Idx]) || 0;
                             }
                         }
-                        sTprop += getTargetVal(D_TARG, child, sOutlet, sTargIdx);
-                        sTfy += getTargetVal(D_TARG, child, sOutlet, tfyIdx);
-                    });
-                } else {
-                    for(let r = 2; r < D_REAL.length; r++) {
-                        if(String(D_REAL[r][0]).trim() === prodName && (sOutlet === "ALL" || String(D_REAL[r][4]).trim() === sOutlet)) {
-                            sReal += parseFloat(D_REAL[r][sDateIdx]) || 0;
-                            sDes25 += parseFloat(D_REAL[r][des25Idx]) || 0;
-                        }
                     }
-                    sTprop = getTargetVal(D_TARG, prodName, sOutlet, sTargIdx);
-                    sTfy = getTargetVal(D_TARG, prodName, sOutlet, tfyIdx);
+                    // Lempar parameter sHub ke fungsi Target
+                    sTprop = getTargetVal(D_TARG, prodName, sOutlet, sTargIdx, sHub);
+                    sTfy = getTargetVal(D_TARG, prodName, sOutlet, tfyIdx, sHub);
                 }
 				// ======== MENGHITUNG TOTAL PIPELINE ========
                 let sPipeline = 0;
@@ -1958,9 +2085,12 @@
                             const validActiveStatus = ["AKAD BELUM BOOKING", "PENDING AKAD", "APPROVED", "PROSES APPROVED", "PROSES ANALIS", "COLLECT DATA"];
                             
                             if (validActiveStatus.includes(pStatus) && (sOutletCode === "ALL" || sOutletCode === pOutletCode)) {
-                                children.forEach(child => {
-                                    if (pProduk.includes(child.toUpperCase())) sPipeline += pNominal;
-                                });
+                                // Pengecekan HUB Pipeline di sini
+                                if (isOutletInHub(pOutletCode, sHub)) {
+                                    children.forEach(child => {
+                                        if (pProduk.includes(child.toUpperCase())) sPipeline += pNominal;
+                                    });
+                                }
                             }
                         }
                     }
@@ -2390,17 +2520,61 @@
         function formatM(num) { return Math.abs(num).toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M'; }
         function formatGap(num) { return (num < 0 ? "-" : "+") + formatM(num); }
 
-        function getTargetVal(dataTarget, produk, outlet, colIdx) {
+        function getTargetVal(dataTarget, produk, outlet, colIdx, hub = "ALL") {
             if(!colIdx || colIdx === -1) return 0;
             let sum = 0, safeP = String(produk).trim(), safeO = String(outlet).trim();
+            
+            const hubJatinegaraCodes = ["00", "04", "07", "09", "14", "15", "62", "64", "65"];
+            const hubKramatJatiCodes = ["05", "06", "08", "12", "13", "16", "17", "63"];
+
             for(let r = 2; r < dataTarget.length; r++) {
                 if(String(dataTarget[r][0]).trim() === safeP) {
-                    if(safeO !== "ALL" && String(dataTarget[r][4]).trim() === safeO) return parseFloat(dataTarget[r][colIdx]) || 0;
+                    let rOutlet = String(dataTarget[r][4]).trim();
+                    let code = rOutlet.substring(0, 2);
+                    
+                    let hubMatch = true;
+                    if(hub === "JATINEGARA") hubMatch = hubJatinegaraCodes.includes(code);
+                    if(hub === "KRAMAT_JATI") hubMatch = hubKramatJatiCodes.includes(code);
+                    if(!hubMatch) continue; // Abaikan jika cabang bukan dari HUB yang terpilih
+
+                    if(safeO !== "ALL" && rOutlet === safeO) return parseFloat(dataTarget[r][colIdx]) || 0;
                     else if(safeO === "ALL") sum += (parseFloat(dataTarget[r][colIdx]) || 0);
                 }
             }
             return sum;
         }
+		
+		function toggleAllMonths(source) {
+            let checkboxes = document.querySelectorAll('.month-cb');
+            checkboxes.forEach(cb => cb.checked = source.checked);
+            updateMonthText();
+        }
+        function updateMonthSelection() {
+            let allCb = document.getElementById('book-bulan-all');
+            let checkboxes = document.querySelectorAll('.month-cb');
+            let allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            if(allCb) allCb.checked = allChecked;
+            updateMonthText();
+        }
+        function updateMonthText() {
+            let checked = document.querySelectorAll('.month-cb:checked');
+            let textEl = document.getElementById('book-bulan-text');
+            if (!textEl) return;
+            if (document.getElementById('book-bulan-all') && document.getElementById('book-bulan-all').checked) {
+                textEl.innerText = "Semua Bulan";
+            } else if (checked.length > 0) {
+                textEl.innerText = checked.length + " Bulan Terpilih";
+            } else {
+                textEl.innerText = "Pilih Bulan";
+            }
+        }
+        // Menutup dropdown bulan jika user klik di luar kotak
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.checkbox-dropdown')) {
+                let list = document.getElementById('book-bulan-list');
+                if (list) list.classList.remove('show');
+            }
+        });
 
         function renderBookingFiltersAndDashboard() {
             let bookData = RAW.booking;
@@ -2425,12 +2599,18 @@
 
             const selProd = document.getElementById("book-produk");
             const selType = document.getElementById("book-typesales");
-            const selBulan = document.getElementById("book-bulan");
+            const monthList = document.getElementById("book-bulan-list");
             const selOutl = document.getElementById("book-outlet");
 
             if(selProd && selProd.options.length === 1) Array.from(products).sort().forEach(p => selProd.add(new Option(p, p)));
             if(selType && selType.options.length === 1) Array.from(typeSales).sort().forEach(t => selType.add(new Option(t, t)));
-            if(selBulan && selBulan.options.length === 1) months.forEach(m => selBulan.add(new Option(m.val, m.idx)));
+            if (monthList && monthList.children.length === 0) {
+                let html = `<label><input type="checkbox" id="book-bulan-all" checked onchange="toggleAllMonths(this); renderBookingDashboard();"> Semua Bulan</label>`;
+                months.forEach(m => {
+                    html += `<label><input type="checkbox" class="month-cb" value="${m.idx}" checked onchange="updateMonthSelection(); renderBookingDashboard();"> ${m.val}</label>`;
+                });
+                monthList.innerHTML = html;
+            }
             if(selOutl && selOutl.options.length === 1) Array.from(outlets).sort().forEach(o => selOutl.add(new Option(o, o)));
 
             renderBookingDashboard();
@@ -2443,8 +2623,12 @@
 
             const fProd = document.getElementById("book-produk").value;
             const fType = document.getElementById("book-typesales").value;
-            const fBulan = document.getElementById("book-bulan").value;
             const fOutlet = document.getElementById("book-outlet").value;
+            
+            // Ambil array data dari bulan yang di-ceklis
+            const allChecked = document.getElementById("book-bulan-all");
+            const isAllMonths = allChecked ? allChecked.checked : true;
+            const selectedMonthIdxs = Array.from(document.querySelectorAll(".month-cb:checked")).map(cb => parseInt(cb.value));
 
             let headerRow = bookData[0];
             let monthCols = [], addedM = new Set();
@@ -2479,7 +2663,16 @@
                     rowTotal += val;
                 });
 
-                let filteredRowTotal = fBulan === "ALL" ? rowTotal : (monthValues[monthCols.find(m => m.idx == fBulan)?.name] || 0);
+                // Hitung total khusus dari bulan-bulan yang di-ceklis
+                let filteredRowTotal = 0;
+                if (isAllMonths) {
+                    filteredRowTotal = rowTotal;
+                } else {
+                    selectedMonthIdxs.forEach(idx => {
+                        let mObj = monthCols.find(m => m.idx === idx);
+                        if (mObj) filteredRowTotal += (monthValues[mObj.name] || 0);
+                    });
+                }
 
                 let pUpper = produk.toUpperCase();
                 if(pUpper.includes("FLEKSI")) sumFleksi += filteredRowTotal;
@@ -2515,6 +2708,7 @@
             // Memisahkan Data Tren Konsumer dan SBP
             let monthlyKonsumerData = [];
             let monthlySbpData = [];
+            let monthlyGrandTotalData = []; // Tambahan variabel untuk Grand Total
 
             monthCols.forEach(m => {
                 let sumKons = 0;
@@ -2533,18 +2727,125 @@
                 
                 monthlyKonsumerData.push(sumKons / 1e9);
                 monthlySbpData.push(sumSbp / 1e9);
+                monthlyGrandTotalData.push((sumKons + sumSbp) / 1e9); // Tambahan eksekusi Grand Total
             });
+
+            // --- DATA & RENDER GRAFIK KONSUMER ---
+            let fChartKons = document.getElementById("chartFilterKonsumer") ? document.getElementById("chartFilterKonsumer").value : "ALL";
+            let konsumerDatasets = [];
+
+            if (fChartKons === "ALL") {
+                let monthlyFleksi = [], monthlyGriya = [];
+                monthCols.forEach(m => {
+                    let sumF = 0, sumG = 0;
+                    salesArray.forEach(s => {
+                        let p = s.produk.toUpperCase();
+                        let val = s.months[m.name] || 0;
+                        if(p.includes("FLEKSI")) sumF += val;
+                        if(p.includes("GRIYA")) sumG += val;
+                    });
+                    monthlyFleksi.push(sumF / 1e9);
+                    monthlyGriya.push(sumG / 1e9);
+                });
+                konsumerDatasets = [
+                    {
+                        label: 'Fleksi',
+                        data: monthlyFleksi,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                        borderWidth: 3, pointRadius: 4, fill: true, tension: 0.3
+                    },
+                    {
+                        label: 'Griya',
+                        data: monthlyGriya,
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14, 165, 233, 0.05)',
+                        borderWidth: 3, pointRadius: 4, fill: true, tension: 0.3
+                    }
+                ];
+            } else {
+                let monthlySub = [];
+                monthCols.forEach(m => {
+                    let sumSub = 0;
+                    salesArray.forEach(s => {
+                        let p = s.produk.toUpperCase();
+                        let val = s.months[m.name] || 0;
+                        if(p.includes(fChartKons.toUpperCase())) sumSub += val;
+                    });
+                    monthlySub.push(sumSub / 1e9);
+                });
+                konsumerDatasets = [{
+                    label: fChartKons,
+                    data: monthlySub,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    borderWidth: 3, pointRadius: 5, fill: true, tension: 0.3
+                }];
+            }
+
+            // --- DATA & RENDER GRAFIK SBP (PRODUKTIF) ---
+            let fChartSBP = document.getElementById("chartFilterSBP") ? document.getElementById("chartFilterSBP").value : "ALL";
+            let sbpDatasets = [];
+
+            if (fChartSBP === "ALL") {
+                let monthlyKur = [], monthlyBwu = [];
+                monthCols.forEach(m => {
+                    let sumK = 0, sumB = 0;
+                    salesArray.forEach(s => {
+                        let p = s.produk.toUpperCase();
+                        let val = s.months[m.name] || 0;
+                        if(p.includes("KUR")) sumK += val;
+                        if(p.includes("BWU")) sumB += val;
+                    });
+                    monthlyKur.push(sumK / 1e9);
+                    monthlyBwu.push(sumB / 1e9);
+                });
+                sbpDatasets = [
+                    {
+                        label: 'KUR',
+                        data: monthlyKur,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                        borderWidth: 3, pointRadius: 4, fill: true, tension: 0.3
+                    },
+                    {
+                        label: 'BWU',
+                        data: monthlyBwu,
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.05)',
+                        borderWidth: 3, pointRadius: 4, fill: true, tension: 0.3
+                    }
+                ];
+            } else {
+                let monthlySubSbp = [];
+                monthCols.forEach(m => {
+                    let sumSubSbp = 0;
+                    salesArray.forEach(s => {
+                        let p = s.produk.toUpperCase();
+                        let val = s.months[m.name] || 0;
+                        if(p.includes(fChartSBP.toUpperCase())) sumSubSbp += val;
+                    });
+                    monthlySubSbp.push(sumSubSbp / 1e9);
+                });
+                sbpDatasets = [{
+                    label: fChartSBP,
+                    data: monthlySubSbp,
+                    borderColor: '#f59e0b',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    borderWidth: 3, pointRadius: 5, fill: true, tension: 0.3
+                }];
+            }
 
             // Pengaturan Umum untuk Grafik
             let chartOptions = {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
+                    legend: { display: true, position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                return 'Rp ' + context.parsed.y.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M';
+                                return context.dataset.label + ': Rp ' + context.parsed.y.toLocaleString('id-ID', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' M';
                             }
                         }
                     }
@@ -2559,52 +2860,72 @@
                 }
             };
 
-            // Render Chart Konsumer (Warna Hijau)
+            // Render Chart Konsumer
             if(bookingKonsumerChart) bookingKonsumerChart.destroy();
             let canvasKonsumer = document.getElementById('bookingKonsumerChart');
             if (canvasKonsumer) {
                 bookingKonsumerChart = new Chart(canvasKonsumer.getContext('2d'), {
                     type: 'line',
-                    data: {
-                        labels: monthCols.map(m => m.name),
-                        datasets: [{
-                            label: 'Booking Konsumer',
-                            data: monthlyKonsumerData,
-                            borderColor: '#10b981', 
-                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                            borderWidth: 3, pointBackgroundColor: '#10b981', pointBorderColor: '#ffffff',
-                            pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 7, fill: true, tension: 0.3
-                        }]
-                    },
+                    data: { labels: monthCols.map(m => m.name), datasets: konsumerDatasets },
                     options: chartOptions
                 });
             }
 
-            // Render Chart SBP (Warna Kuning/Orange)
+            // Render Chart SBP
             if(bookingSbpChart) bookingSbpChart.destroy();
-            let canvasSbp = document.getElementById('bookingSbpChart');
-            if (canvasSbp) {
-                bookingSbpChart = new Chart(canvasSbp.getContext('2d'), {
+         let canvasSbp = document.getElementById('bookingSbpChart');
+         if (canvasSbp) {
+             bookingSbpChart = new Chart(canvasSbp.getContext('2d'), {
+                 type: 'line',
+                 data: { labels: monthCols.map(m => m.name), datasets: sbpDatasets },
+                 options: chartOptions
+             });
+         }
+
+// === RENDER CHART KETIGA (GABUNGAN) ===
+            // Perbaikan: Gunakan nama variabel yang berbeda dari ID HTML (chartInstanceTotal) agar tidak crash
+            if(window.chartInstanceTotal) window.chartInstanceTotal.destroy();
+            let canvasTotal = document.getElementById('bookingTotalChart');
+            if (canvasTotal) {
+                window.chartInstanceTotal = new Chart(canvasTotal.getContext('2d'), {
                     type: 'line',
-                    data: {
-                        labels: monthCols.map(m => m.name),
-                        datasets: [{
-                            label: 'Booking SBP',
-                            data: monthlySbpData,
-                            borderColor: '#f59e0b', 
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            borderWidth: 3, pointBackgroundColor: '#f59e0b', pointBorderColor: '#ffffff',
-                            pointBorderWidth: 2, pointRadius: 5, pointHoverRadius: 7, fill: true, tension: 0.3
-                        }]
+                    data: { 
+                        labels: monthCols.map(m => m.name), 
+                        datasets: [
+                            {
+                                label: 'Total Konsumer',
+                                data: monthlyKonsumerData,
+                                borderColor: '#10b981', // Garis Hijau
+                                backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                                borderWidth: 3, pointRadius: 4, fill: true, tension: 0.3
+                            },
+                            {
+                                label: 'Total SBP',
+                                data: monthlySbpData,
+                                borderColor: '#f59e0b', // Garis Oranye
+                                backgroundColor: 'rgba(245, 158, 11, 0.05)',
+                                borderWidth: 3, pointRadius: 4, fill: true, tension: 0.3
+                            },
+                            {
+                                label: 'Grand Total Keseluruhan',
+                                data: monthlyGrandTotalData,
+                                borderColor: '#0f172a', // Garis Biru Gelap
+                                backgroundColor: 'rgba(15, 23, 42, 0.05)',
+                                borderWidth: 3, pointRadius: 5, fill: false, tension: 0.3, borderDash: [5, 5] // Efek garis putus-putus
+                            }
+                        ]
                     },
                     options: chartOptions
                 });
             }
+            // ======================================
 
-            globalBookingSalesArray = salesArray.sort((a, b) => b.total - a.total);
-            updateBookingLeaderboards();
-            renderBookingTable(globalBookingSalesArray, monthCols);
-        }
+         // === BARIS YANG SEMPAT HILANG (PENTING) ===
+         globalBookingSalesArray = salesArray;
+         updateBookingLeaderboards();
+         renderBookingTable(salesArray, monthCols);
+
+     }
 
         function updateBookingLeaderboards() {
             if(!globalBookingSalesArray || globalBookingSalesArray.length === 0) return;
@@ -3370,6 +3691,24 @@
 document.getElementById("gl-table-body").innerHTML = tbodyHtml || `<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);">Tidak ada data yang cocok dengan kriteria filter.</td></tr>`; // Ubah ke 10
         }
 
+	function exportExcelGL() {
+    let table = document.getElementById("gl-table");
+    if (!table) {
+        alert("Data tabel belum tersedia!");
+        return;
+    }
+
+    // Convert tabel HTML langsung ke format workbook Excel
+    // { raw: true } memastikan format angka/teks tidak terpotong (misal CIF atau nominal panjang)
+    let wb = XLSX.utils.table_to_book(table, { sheet: "Gainer Looser", raw: true });
+
+    // Buat format tanggal (YYYYMMDD) untuk nama file
+    let d = new Date();
+    let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+
+    // Download file Excel
+    XLSX.writeFile(wb, `Data_Gainer_Looser_${dateStr}.xlsx`);
+}
     </script>
 </body>
 </html>
