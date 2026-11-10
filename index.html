@@ -8,6 +8,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <!-- html2pdf for PDF Generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+	<!-- SheetJS for Excel Export -->
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <style>
         :root {
@@ -1300,11 +1302,16 @@
             `;
 
             // UI UNTUK TABEL DATA GAINER LOOSER
-            contentArea.innerHTML = `
-                <div class="section-subtitle">Data Gainer & Looser</div>
-                <div class="table-card" style="padding: 10px;">
-                    <div class="table-responsive">
-                        <table class="kpi-table" id="gl-table" style="white-space: nowrap;">
+contentArea.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 25px; margin-bottom: 15px;">
+        <div class="section-subtitle" style="margin: 0;">Data Gainer & Looser</div>
+        <button class="export-btn" onclick="exportExcelGL()" style="background-color: #10b981; color: white; border: none; padding: 8px 16px;">
+            📊 Download Excel
+        </button>
+    </div>
+    <div class="table-card" style="padding: 10px;">
+        <div class="table-responsive">
+            <table class="kpi-table" id="gl-table" style="white-space: nowrap;">
                             <thead id="gl-table-head">
     <tr>
         <th style="background-color: #84cc16; color: #3f6212;">No</th>
@@ -1369,8 +1376,8 @@
 
                     if (rM === 0 && tM === 0) return;
 
-                    const isAchieved = isAchievedArray[index];
                     const r = isAchieved ? 16 : 220;
+                    const isAchieved = isAchievedArray[index];
                     const g = isAchieved ? 185 : 38;
                     const b = isAchieved ? 129 : 38;
                     
@@ -3370,6 +3377,24 @@
 document.getElementById("gl-table-body").innerHTML = tbodyHtml || `<tr><td colspan="10" style="text-align:center; padding:20px; color:var(--text-muted);">Tidak ada data yang cocok dengan kriteria filter.</td></tr>`; // Ubah ke 10
         }
 
+	function exportExcelGL() {
+    let table = document.getElementById("gl-table");
+    if (!table) {
+        alert("Data tabel belum tersedia!");
+        return;
+    }
+
+    // Convert tabel HTML langsung ke format workbook Excel
+    // { raw: true } memastikan format angka/teks tidak terpotong (misal CIF atau nominal panjang)
+    let wb = XLSX.utils.table_to_book(table, { sheet: "Gainer Looser", raw: true });
+
+    // Buat format tanggal (YYYYMMDD) untuk nama file
+    let d = new Date();
+    let dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+
+    // Download file Excel
+    XLSX.writeFile(wb, `Data_Gainer_Looser_${dateStr}.xlsx`);
+}
     </script>
 </body>
 </html>
