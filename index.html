@@ -2068,6 +2068,12 @@ function isOutletInHub(outletName, hub) {
                 if (CURRENT_MENU === "KONSUMER" || CURRENT_MENU === "PRODUKTIF") {
                     let pipelineData = CURRENT_MENU === "KONSUMER" ? RAW.pipeline_konsumer : RAW.pipeline_produktif;
                     if (pipelineData && pipelineData.length > 1) {
+                        let statusColIdx = CURRENT_MENU === "KONSUMER" ? 11 : 10;
+                        if (pipelineData[0]) {
+                            let detectedIdx = pipelineData[0].findIndex(h => String(h || "").trim().toUpperCase() === "PROGRESS");
+                            if (detectedIdx !== -1) statusColIdx = detectedIdx;
+                        }
+
                         let sOutletCode = sOutlet === "ALL" ? "ALL" : sOutlet.substring(0, 2);
                         let children = isTotalCard ? 
                             (CURRENT_MENU === "KONSUMER" ? ["Fleksi", "Griya", "Instan"] : ["KUR", "BWU", "BCM"]) : 
@@ -2075,12 +2081,12 @@ function isOutletInHub(outletName, hub) {
                         
                         for (let r = 1; r < pipelineData.length; r++) {
                             let row = pipelineData[r];
-                            if (row.length < 11) continue; 
+                            if (row.length <= statusColIdx) continue; 
                             
                             let pOutletCode = String(row[1] || "").trim().substring(0, 2);
                             let pProduk = String(row[4] || "").trim().toUpperCase();
                             let pNominal = parseFloat(row[6]) || 0;
-                            let pStatus = String(row[10] || "").trim().toUpperCase();
+                            let pStatus = String(row[statusColIdx] || "").trim().toUpperCase();
                             
                             const validActiveStatus = ["AKAD BELUM BOOKING", "PENDING AKAD", "APPROVED", "PROSES APPROVED", "PROSES ANALIS", "COLLECT DATA"];
                             
@@ -3039,6 +3045,12 @@ function isOutletInHub(outletName, hub) {
             let namaSales = new Set();
             let progressList = new Set(); // Set penampung status progress
 
+            let colProgressIdx = CURRENT_MENU === "PIPELINE_KONSUMER" ? 11 : 10;
+            if (pipelineData[0]) {
+                let detectedIdx = pipelineData[0].findIndex(h => String(h || "").trim().toUpperCase() === "PROGRESS");
+                if (detectedIdx !== -1) colProgressIdx = detectedIdx;
+            }
+
             for(let r = 1; r < pipelineData.length; r++) {
                 let row = pipelineData[r];
                 if(row.length > 3) {
@@ -3046,9 +3058,8 @@ function isOutletInHub(outletName, hub) {
                     if(row[2]) tipeSales.add(String(row[2]).trim());
                     if(row[3]) namaSales.add(String(row[3]).trim());
                 }
-                // Ambil data progress dari kolom 10 (Kolom K spreadsheet / Index ke-10 array)
-                if(row.length > 10 && row[10]) {
-                    progressList.add(String(row[10]).trim().toUpperCase());
+                if(row.length > colProgressIdx && row[colProgressIdx]) {
+                    progressList.add(String(row[colProgressIdx]).trim().toUpperCase());
                 }
             }
 
@@ -3106,7 +3117,11 @@ function isOutletInHub(outletName, hub) {
             let colNamaSales = 3;
             let colProduk = 4;
             let colNominal = 6;
-            let colProgress = 10;
+            let colProgress = CURRENT_MENU === "PIPELINE_KONSUMER" ? 11 : 10;
+            if (pipelineData[0]) {
+                let detectedIdx = pipelineData[0].findIndex(h => String(h || "").trim().toUpperCase() === "PROGRESS");
+                if (detectedIdx !== -1) colProgress = detectedIdx;
+            }
             let colDebitur = 5;  // Kolom F: Nama Nasabah
             let colInstansi = 7; // Kolom H: Perusahaan
 
